@@ -5511,3 +5511,41 @@
               });
             }
 
+            // Python-specific security checks
+            var isPyFile = f.name.endsWith(".py") || f.name.endsWith(".pyw");
+            if (isPyFile && scanContent) {
+              // eval() and exec() - arbitrary code execution
+              if (scanContent.match(/\beval\s*\(/)) {
+                var evalLine = lines.findIndex(function (l) {
+                  return l.match(/\beval\s*\(/);
+                });
+                issues.push({
+                  severity: "high",
+                  title: "Python eval()",
+                  file: f.name,
+                  path: f.path,
+                  line: evalLine >= 0 ? evalLine + 1 : undefined,
+                  desc: "eval() executes arbitrary Python code. Use ast.literal_eval() for safe parsing.",
+                  code:
+                    evalLine >= 0
+                      ? lines[evalLine].trim().substring(0, 80)
+                      : "",
+                });
+              }
+              if (scanContent.match(/\bexec\s*\(/)) {
+                var execLine = lines.findIndex(function (l) {
+                  return l.match(/\bexec\s*\(/);
+                });
+                issues.push({
+                  severity: "high",
+                  title: "Python exec()",
+                  file: f.name,
+                  path: f.path,
+                  line: execLine >= 0 ? execLine + 1 : undefined,
+                  desc: "exec() executes arbitrary Python code. This is almost always a security risk.",
+                  code:
+                    execLine >= 0
+                      ? lines[execLine].trim().substring(0, 80)
+                      : "",
+                });
+              }
