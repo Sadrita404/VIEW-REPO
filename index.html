@@ -5021,5 +5021,115 @@
           }
           return prev[n];
         },
+        // Create a structural fingerprint for code (for grouping similar code)
+        codeFingerprint: function (code) {
+          if (!code || code.length < 50) return null;
+
+          // Extract structural elements
+          var structure = code
+            .replace(/\/\/.*$/gm, "") // Remove comments
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/['"`][^'"`]*['"`]/g, "") // Remove string contents
+            .replace(/\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g, "I") // All identifiers -> I
+            .replace(/\b\d+\.?\d*\b/g, "N") // All numbers -> N
+            .replace(/\s+/g, ""); // Remove whitespace
+
+          // Take a hash-like fingerprint based on structure length and key patterns
+          var patterns = {
+            loops: (structure.match(/for|while/g) || []).length,
+            conditions: (structure.match(/if|\?/g) || []).length,
+            calls: (structure.match(/I\(/g) || []).length,
+            returns: (structure.match(/return/g) || []).length,
+            len: Math.floor(structure.length / 50) * 50, // Bucket by length
+          };
+
+          // Create fingerprint string
+          return (
+            "L" +
+            patterns.loops +
+            "C" +
+            patterns.conditions +
+            "F" +
+            patterns.calls +
+            "R" +
+            patterns.returns +
+            "S" +
+            patterns.len
+          );
+        },
+        detectLayerViolations: function (files, connections) {
+          var violations = [];
+          var layerOrder = {
+            presentation: 0,
+            ui: 0,
+            component: 0,
+            components: 0,
+            page: 0,
+            view: 0,
+            feature: 1,
+            service: 2,
+            services: 2,
+            api: 2,
+            data: 3,
+            model: 3,
+            util: 4,
+            utils: 4,
+            helper: 4,
+            lib: 4,
+            core: 4,
+            config: 5,
+            test: 6,
+            modules: 5,
+            forms: 0,
+            classes: 3,
+          };
+          var fileByPath = {};
+          files.forEach(function (f) {
+            fileByPath[f.path] = f;
+          });
+          connections.forEach(function (c) {
+            var srcFile = fileByPath[c.source];
+            var tgtFile = fileByPath[c.target];
+            if (!srcFile || !tgtFile) return;
+            var srcLayer = (srcFile.layer || "").toLowerCase();
+            var tgtLayer = (tgtFile.layer || "").toLowerCase();
+            var srcLevel = layerOrder[srcLayer];
+            var tgtLevel = layerOrder[tgtLayer];
+            // Violation: lower layer importing from higher layer (e.g., service importing from UI)
+            if (
+              srcLevel !== undefined &&
+              tgtLevel !== undefined &&
+              srcLevel > tgtLevel &&
+              srcLevel - tgtLevel > 1
+            ) {
+              violations.push({
+                from: srcFile.path,
+                fromLayer: srcFile.layer,
+                to: tgtFile.path,
+                toLayer: tgtFile.layer,
+                fn: c.fn,
+                suggestion:
+                  srcFile.layer +
+                  " should not import from " +
+                  tgtFile.layer +
+                  ". Consider inverting the dependency or using dependency injection.",
+              });
+            }
+          });
+          return violations;
+        },
+        calcComplexity: function (content, filename) {
+          if (!content) return { score: 0, level: "low" };
+          if (filename && Parser.isScriptContainer(filename)) {
+            var blocks = Parser.getEmbeddedCodeBlocks(content, filename, {
+              includeHandlers: true,
+            });
+            if (!blocks.length) return { score: 0, level: "low" };
+            content = blocks
+              .map(function (block) {
+                return block.content;
+              })
+              .join("\n");
+          }
 
 
