@@ -4050,3 +4050,44 @@
             info.executable = true;
             info.isTS = true;
           }
+
+          if (lang === "ts" || lang === "tsx" || lang === "typescript") {
+            info.executable = true;
+            info.isTS = true;
+          } else if (
+            lang === "js" ||
+            lang === "jsx" ||
+            lang === "javascript" ||
+            lang === "babel"
+          ) {
+            info.executable = true;
+          }
+
+          return info;
+        },
+        getEmbeddedCodeBlocks: function (content, filename, options) {
+          if (!content || !Parser.isScriptContainer(filename)) return [];
+          var blocks = [];
+          var scriptRegex = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
+          var match;
+          var scriptRanges = [];
+          while ((match = scriptRegex.exec(content))) {
+            var attrs = match[1] || "";
+            var info = Parser.getScriptBlockInfo(attrs);
+            var scriptContent = match[2] || "";
+            scriptRanges.push({
+              start: match.index,
+              end: match.index + match[0].length,
+            });
+            if (!info.executable || !scriptContent.trim()) continue;
+            var openTagEnd = match[0].indexOf(">");
+            if (openTagEnd < 0) continue;
+            var bodyStart = match.index + openTagEnd + 1;
+            blocks.push({
+              content: scriptContent,
+              offset: content.slice(0, bodyStart).split("\n").length - 1,
+              isTS: info.isTS,
+              sourceType: info.sourceType,
+              kind: "script",
+            });
+          }
