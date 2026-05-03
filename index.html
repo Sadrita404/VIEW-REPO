@@ -6574,3 +6574,553 @@
                 isTopLevel: true,
                 type: "function",
               });
+
+              // Ruby: def name
+            if ((m = line.match(/^\s*def\s+([a-zA-Z_][a-zA-Z0-9_?!]*)/)))
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // Rust: fn name or pub fn name
+            if (
+              (m = line.match(
+                /(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[<(]/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // PHP: function name( or public function name(
+            if (
+              (m = line.match(
+                /(?:public|private|protected|static)?\s*function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // C/C++: type name( at start or with visibility
+            if (
+              (m = line.match(
+                /^(?:static\s+)?(?:inline\s+)?(?:virtual\s+)?(?:\w+\s+)+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^;]*$/
+              ))
+            )
+              if (!line.match(/^\s*(if|for|while|switch|return|sizeof|typeof)/))
+                addFn({
+                  name: m[1],
+                  file: filename,
+                  line: lineNum,
+                  code: extractCode(lineNum),
+                  isTopLevel: true,
+                  type: "function",
+                });
+
+            // Swift: func name
+            if (
+              (m = line.match(
+                /(?:public|private|internal|fileprivate|open)?\s*(?:static\s+)?(?:class\s+)?func\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[<(]/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // Scala: def name
+            if ((m = line.match(/\bdef\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[(\[]/)))
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // Elixir: def name or defp name
+            if ((m = line.match(/\bdefp?\s+([a-zA-Z_][a-zA-Z0-9_?!]*)/)))
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // Lua: function name( or local function name(
+            if (
+              (m = line.match(
+                /(?:local\s+)?function\s+([a-zA-Z_][a-zA-Z0-9_.:]*)\s*\(/
+              ))
+            )
+              addFn({
+                name: m[1].split(/[.:]/).pop(),
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // VBA: Sub Name() or Function Name()
+            if (
+              (m = line.match(
+                /(?:Public|Private|Friend)?\s*(?:Sub|Function)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/i
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+          });
+        },
+        extractJSFunctions: function (
+          content,
+          filename,
+          offset,
+          addFn,
+          extractCode,
+          isTS
+        ) {
+          if (!content || !content.trim()) return;
+          if (typeof acorn !== "undefined") {
+            var parseContent = content;
+            var parseSuccess = false;
+
+            if (typeof Babel !== "undefined") {
+              try {
+                var babelPresets = ["react"];
+                if (isTS) babelPresets.push("typescript");
+                var babelResult = Babel.transform(parseContent, {
+                  presets: babelPresets,
+                  filename: filename || "file.js",
+                  sourceType: "module",
+                  retainLines: true,
+                });
+                parseContent = babelResult.code;
+              } catch (babelErr) {
+                if (isTS) {
+                  parseContent = Parser.stripTypeScript(content);
+                }
+              }
+            } else if (isTS) {
+              parseContent = Parser.stripTypeScript(content);
+            }
+
+            try {
+              var ast = acorn.parse(parseContent, {
+                ecmaVersion: 2022,
+                sourceType: "module",
+                allowHashBang: true,
+                allowAwaitOutsideFunction: true,
+                allowImportExportEverywhere: true,
+                allowReturnOutsideFunction: true,
+                locations: true,
+              });
+              parseSuccess = true;
+
+              function walk(node, scope, parentIsExport) {
+                if (!node || typeof node !== "object") return;
+                var isTopLevel = scope === 0;
+
+                if (
+                  node.type === "FunctionDeclaration" &&
+                  node.id &&
+                  node.id.name
+                ) {
+                  var line = (node.loc ? node.loc.start.line : 1) + offset;
+                  var endLine = (node.loc ? node.loc.end.line : line) + offset;
+                  addFn({
+                    name: node.id.name,
+                    file: filename,
+                    line: line,
+                    code: extractCode(line, endLine),
+                    isTopLevel: isTopLevel,
+                    isExported: parentIsExport || false,
+                    type: "function",
+                  });
+                }
+
+                if (node.type === "VariableDeclaration") {
+                  node.declarations.forEach(function (decl) {
+                    if (decl.id && decl.id.type === "Identifier" && decl.init) {
+                      var init = decl.init;
+                      if (
+                        init.type === "FunctionExpression" ||
+                        init.type === "ArrowFunctionExpression"
+                      ) {
+                        var line =
+                          (decl.loc ? decl.loc.start.line : 1) + offset;
+                        var endLine =
+                          (decl.loc ? decl.loc.end.line : line) + offset;
+                        addFn({
+                          name: decl.id.name,
+                          file: filename,
+                          line: line,
+                          code: extractCode(line, endLine),
+                          isTopLevel: isTopLevel,
+                          isExported: parentIsExport || false,
+                          type:
+                            init.type === "ArrowFunctionExpression"
+                              ? "arrow"
+                              : "function",
+                        });
+                      }
+                    }
+                  });
+                }
+
+                if (node.type === "MethodDefinition" && node.key) {
+                  var methodName =
+                    node.key.name ||
+                    (node.key.value != null ? String(node.key.value) : null);
+                  if (methodName && methodName !== "constructor") {
+                    var methodLine =
+                      (node.loc ? node.loc.start.line : 1) + offset;
+                    var methodEndLine =
+                      (node.loc ? node.loc.end.line : methodLine) + offset;
+                    addFn({
+                      name: methodName,
+                      file: filename,
+                      line: methodLine,
+                      code: extractCode(methodLine, methodEndLine),
+                      isTopLevel: false,
+                      isExported: false,
+                      type: "method",
+                      isClassMethod: true,
+                      isGetter: node.kind === "get",
+                      isSetter: node.kind === "set",
+                    });
+                  }
+                }
+
+                if (node.type === "Property" && node.method && node.key) {
+                  var shorthandName =
+                    node.key.name ||
+                    (node.key.value != null ? String(node.key.value) : null);
+                  if (shorthandName) {
+                    var shorthandLine =
+                      (node.loc ? node.loc.start.line : 1) + offset;
+                    var shorthandEndLine =
+                      (node.loc ? node.loc.end.line : shorthandLine) + offset;
+                    addFn({
+                      name: shorthandName,
+                      file: filename,
+                      line: shorthandLine,
+                      code: extractCode(shorthandLine, shorthandEndLine),
+                      isTopLevel: false,
+                      isExported: false,
+                      type: "method",
+                    });
+                  }
+                }
+
+                if (
+                  node.type === "Property" &&
+                  !node.method &&
+                  node.value &&
+                  node.key
+                ) {
+                  var val = node.value;
+                  if (
+                    val.type === "FunctionExpression" ||
+                    val.type === "ArrowFunctionExpression"
+                  ) {
+                    var propName =
+                      node.key.name ||
+                      (node.key.value != null ? String(node.key.value) : null);
+                    if (propName) {
+                      var propLine =
+                        (node.loc ? node.loc.start.line : 1) + offset;
+                      var propEndLine =
+                        (node.loc ? node.loc.end.line : propLine) + offset;
+                      addFn({
+                        name: propName,
+                        file: filename,
+                        line: propLine,
+                        code: extractCode(propLine, propEndLine),
+                        isTopLevel: false,
+                        isExported: false,
+                        type: "method",
+                      });
+                    }
+                  }
+                }
+
+                var nextIsExport = false;
+                if (
+                  node.type === "ExportNamedDeclaration" ||
+                  node.type === "ExportDefaultDeclaration"
+                ) {
+                  nextIsExport = true;
+                  if (node.declaration) {
+                    walk(node.declaration, scope, true);
+                    return;
+                  }
+                }
+
+                var newScope = scope;
+                if (
+                  node.type === "FunctionDeclaration" ||
+                  node.type === "FunctionExpression" ||
+                  node.type === "ArrowFunctionExpression" ||
+                  node.type === "ClassDeclaration" ||
+                  node.type === "ClassExpression"
+                ) {
+                  newScope = scope + 1;
+                }
+
+                for (var key in node) {
+                  if (
+                    key === "loc" ||
+                    key === "range" ||
+                    key === "start" ||
+                    key === "end" ||
+                    key === "raw"
+                  )
+                    continue;
+                  var child = node[key];
+                  if (Array.isArray(child)) {
+                    child.forEach(function (c) {
+                      walk(c, newScope, nextIsExport);
+                    });
+                  } else if (child && typeof child === "object" && child.type) {
+                    walk(child, newScope, nextIsExport);
+                  }
+                }
+              }
+
+              walk(ast, 0, false);
+            } catch (e) {
+              parseSuccess = false;
+            }
+
+            if (!parseSuccess) {
+              Parser.extractWithRegex(
+                content,
+                filename,
+                offset,
+                addFn,
+                extractCode
+              );
+            }
+            return;
+          }
+
+          Parser.extractWithRegex(
+            content,
+            filename,
+            offset,
+            addFn,
+            extractCode
+          );
+        },
+        findJSCalls: function (content, fnNames, defLines, options) {
+          fnNames = Parser.candidateFunctionNames(content, fnNames);
+          var calls = {};
+          var refs = {};
+          if (!fnNames.length) return calls;
+          fnNames.forEach(function (fn) {
+            calls[fn] = 0;
+            refs[fn] = 0;
+          });
+
+          var sourceType =
+            options && options.sourceType === "script" ? "script" : "module";
+          var isTS = !!(options && options.isTS);
+
+          if (typeof acorn !== "undefined") {
+            try {
+              var jsContent = content;
+              if (typeof Babel !== "undefined") {
+                try {
+                  var babelPresets = ["react"];
+                  if (isTS) babelPresets.push("typescript");
+                  var babelResult = Babel.transform(content, {
+                    presets: babelPresets,
+                    filename:
+                      options && options.filename
+                        ? options.filename
+                        : "file.js",
+                    sourceType: sourceType,
+                    retainLines: true,
+                  });
+                  jsContent = babelResult.code;
+                } catch (babelErr) {
+                  jsContent = isTS ? Parser.stripTypeScript(content) : content;
+                }
+              } else if (isTS) {
+                jsContent = Parser.stripTypeScript(content);
+              }
+
+              var ast = acorn.parse(jsContent, {
+                ecmaVersion: 2022,
+                sourceType: sourceType,
+                allowHashBang: true,
+                allowAwaitOutsideFunction: true,
+                allowImportExportEverywhere: true,
+                allowReturnOutsideFunction: true,
+                locations: true,
+                tolerant: true,
+              });
+              var fnSet = new Set(fnNames);
+
+              function walk(node, inDeclaration) {
+                if (!node || typeof node !== "object") return;
+                var isDecl =
+                  node.type === "FunctionDeclaration" ||
+                  node.type === "VariableDeclarator";
+
+                if (node.type === "CallExpression") {
+                  var callee = node.callee;
+                  if (callee.type === "Identifier" && fnSet.has(callee.name)) {
+                    var line = callee.loc ? callee.loc.start.line : 0;
+                    if (
+                      !defLines[callee.name] ||
+                      defLines[callee.name] !== line
+                    ) {
+                      calls[callee.name]++;
+                    }
+                  }
+                  node.arguments.forEach(function (arg) {
+                    if (arg.type === "Identifier" && fnSet.has(arg.name)) {
+                      refs[arg.name]++;
+                    }
+                  });
+                }
+
+                if (node.type === "ArrayExpression") {
+                  node.elements.forEach(function (el) {
+                    if (el && el.type === "Identifier" && fnSet.has(el.name)) {
+                      refs[el.name]++;
+                    }
+                  });
+                }
+                if (
+                  node.type === "Property" &&
+                  node.value &&
+                  node.value.type === "Identifier" &&
+                  fnSet.has(node.value.name)
+                ) {
+                  refs[node.value.name]++;
+                }
+
+                if (
+                  node.type === "Identifier" &&
+                  fnSet.has(node.name) &&
+                  !inDeclaration
+                ) {
+                  // Identifier references are handled via the surrounding parent nodes.
+                }
+
+                for (var key in node) {
+                  if (
+                    key === "loc" ||
+                    key === "range" ||
+                    key === "start" ||
+                    key === "end"
+                  )
+                    continue;
+                  var child = node[key];
+                  var nextInDecl = isDecl && (key === "id" || key === "key");
+                  if (Array.isArray(child)) {
+                    child.forEach(function (c) {
+                      walk(c, nextInDecl);
+                    });
+                  } else if (child && typeof child === "object" && child.type) {
+                    walk(child, nextInDecl);
+                  }
+                }
+              }
+
+              walk(ast, false);
+              fnNames.forEach(function (fn) {
+                calls[fn] = calls[fn] + (refs[fn] || 0);
+              });
+              return calls;
+            } catch (e) {
+              // Fall back to regex below.
+            }
+          }
+
+          return Parser.countCandidateCalls(content, fnNames, { isJS: true });
+        },
+
+        buildFunctionNameIndex: function (fnNames) {
+          var exact = new Set();
+          var byBase = Object.create(null);
+          (fnNames || []).forEach(function (fn) {
+            if (typeof fn !== "string" || !fn) return;
+            exact.add(fn);
+            if (fn.indexOf(".") >= 0) {
+              var parts = fn.split(".");
+              var base = parts[parts.length - 1];
+              if (!byBase[base]) byBase[base] = [];
+              byBase[base].push(fn);
+            }
+          });
+          return { exact: exact, byBase: byBase };
+        },
+
+        buildFunctionDefLineIndex: function (fnDefs) {
+          var byFile = Object.create(null);
+          (fnDefs || []).forEach(function (fn) {
+            if (!byFile[fn.file]) byFile[fn.file] = Object.create(null);
+            byFile[fn.file][fn.name] = fn.line;
+          });
+          return byFile;
+        },
+
+        candidateFunctionNames: function (content, fnNames, fnIndex) {
+          if (!content || !fnNames || !fnNames.length) return [];
+          if (fnNames.length <= Parser._callCandidateThreshold) return fnNames;
+          var wordSet = new Set(
+            String(content).match(/\b[a-zA-Z_$][\w$]*\b/g) || []
+          );
+          if (!wordSet.size) return [];
+          var index = fnIndex || Parser.buildFunctionNameIndex(fnNames);
+          var out = [];
+          var seen = new Set();
+          wordSet.forEach(function (word) {
+            if (index.exact.has(word) && !seen.has(word)) {
+              seen.add(word);
+              out.push(word);
+            }
+            var baseMatches = index.byBase[word];
+            if (baseMatches) {
+              baseMatches.forEach(function (fn) {
+                if (!seen.has(fn)) {
+                  seen.add(fn);
+                  out.push(fn);
+                }
+              });
+            }
+          });
+          return out;
+        },
