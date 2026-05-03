@@ -4586,3 +4586,79 @@
                 f.content.match(/@receiver\s*\(/) ||
                 f.content.match(/\.connect\s*\(/))
             );
+             });
+          if (pySignals.length)
+            patterns.push({
+              name: "Django Signals",
+              icon: "radio",
+              desc: "Django signals for decoupled event-driven communication between components.",
+              severity: "info",
+              files: pySignals.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { signals: pySignals.length },
+            });
+          var pyMiddleware = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              (f.content.match(/class\s+\w*Middleware/) ||
+                f.content.match(/def\s+middleware\s*\(/) ||
+                f.name.toLowerCase().includes("middleware"))
+            );
+          });
+          if (pyMiddleware.length)
+            patterns.push({
+              name: "Middleware",
+              icon: "link",
+              desc: "Request/response middleware for cross-cutting concerns (auth, logging, CORS).",
+              severity: "info",
+              files: pyMiddleware.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { middleware: pyMiddleware.length },
+            });
+          var godFiles = files.filter(function (f) {
+            return f.isCode !== false && f.functions && f.functions.length > 15;
+          });
+          if (godFiles.length)
+            patterns.push({
+              name: "God Object",
+              icon: "warning",
+              desc: "Files with too many responsibilities (15+ functions). Consider splitting into smaller modules.",
+              severity: "warning",
+              isAnti: true,
+              files: godFiles.map(function (f) {
+                return { name: f.name, path: f.path, fns: f.functions.length };
+              }),
+              metrics: {
+                files: godFiles.length,
+                avgFns: Math.round(
+                  godFiles.reduce(function (s, f) {
+                    return s + f.functions.length;
+                  }, 0) / godFiles.length
+                ),
+              },
+            });
+          var longFiles = files.filter(function (f) {
+            return f.isCode !== false && f.lines && f.lines > 500;
+          });
+          if (longFiles.length)
+            patterns.push({
+              name: "Long File",
+              icon: "scroll",
+              desc: "Files over 500 lines are harder to maintain. Consider breaking into smaller modules.",
+              severity: "warning",
+              isAnti: true,
+              files: longFiles.map(function (f) {
+                return { name: f.name, path: f.path, lines: f.lines };
+              }),
+              metrics: {
+                files: longFiles.length,
+                avgLines: Math.round(
+                  longFiles.reduce(function (s, f) {
+                    return s + f.lines;
+                  }, 0) / longFiles.length
+                ),
+              },
+            });
