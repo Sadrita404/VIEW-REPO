@@ -6298,3 +6298,279 @@
           }
           return result.join("");
         },
+
+        // Strip TypeScript syntax for Acorn parsing
+        stripTypeScript: function (content) {
+          // Process line by line for more control
+          var lines = content.split("\n");
+          var result = [];
+          var inInterface = false;
+          var braceDepth = 0;
+
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+
+            // Skip type-only imports/exports
+            if (
+              line.match(/^\s*import\s+type\s/) ||
+              line.match(/^\s*export\s+type\s/)
+            ) {
+              result.push("");
+              continue;
+            }
+
+            // Track interface/type blocks to skip
+            if (
+              line.match(/^\s*(?:export\s+)?interface\s+/) ||
+              line.match(/^\s*(?:export\s+)?type\s+\w+\s*=/)
+            ) {
+              inInterface = true;
+              braceDepth = 0;
+            }
+
+            if (inInterface) {
+              for (var j = 0; j < line.length; j++) {
+                if (line[j] === "{") braceDepth++;
+                if (line[j] === "}") braceDepth--;
+              }
+              if (
+                braceDepth <= 0 &&
+                (line.includes("}") ||
+                  line.includes(";") ||
+                  !line.match(/[{;]/))
+              ) {
+                inInterface = false;
+              }
+              result.push("");
+              continue;
+            }
+
+            // Remove type annotations carefully
+            // Function params: (x: Type) -> (x)
+            line = line.replace(
+              /(\w)\s*:\s*[A-Za-z_$<>[\]|&\s,]+(?=[,\)])/g,
+              "$1"
+            );
+            // Return types: ): Type => -> ) =>  or ): Type { -> ) {
+            line = line.replace(
+              /\)\s*:\s*[A-Za-z_$<>[\]|&\s]+(?=\s*[{=>])/g,
+              ")"
+            );
+            // Variable types: let x: Type = -> let x =
+            line = line.replace(
+              /(let|const|var)\s+(\w+)\s*:\s*[A-Za-z_$<>[\]|&\s]+\s*=/g,
+              "$1 $2 ="
+            );
+            // Generic type params: func<T>( -> func(
+            // Apply repeatedly to handle nested or multiple occurrences
+            var prevLine;
+            do {
+              prevLine = line;
+              line = line.replace(/<[A-Za-z_$,\s]+>(?=\s*\()/g, "");
+            } while (line !== prevLine);
+            // As casts: x as Type -> x
+            line = line.replace(
+              /\s+as\s+[A-Za-z_$<>[\]|&\s]+(?=[,;\)\]\}]|$)/g,
+              ""
+            );
+            // Non-null assertions: x! -> x
+            line = line.replace(/!(?=[\.\[\)\],;\s])/g, "");
+            // Declare statements
+            if (line.match(/^\s*declare\s+/)) {
+              result.push("");
+              continue;
+            }
+
+            result.push(line);
+          }
+
+          return result.join("\n");
+        },
+
+        // Comprehensive regex fallback for JS/TS when AST fails
+        extractWithRegex: function (
+          content,
+          filename,
+          offset,
+          addFn,
+          extractCode
+        ) {
+          var lines = content.split("\n");
+
+          lines.forEach(function (line, idx) {
+            var lineNum = idx + 1 + offset;
+            var m;
+
+            // Named function declarations (capture export keyword for isExported)
+            if (
+              (m = line.match(
+                /(export\s+(?:default\s+)?)?(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/
+              ))
+            )
+              addFn({
+                name: m[2],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                isExported: !!m[1],
+                type: "function",
+              });
+
+            // Arrow functions assigned to const/let/var at START of meaningful content
+            // Must have = directly followed by arrow function pattern
+            if (
+              (m = line.match(
+                /(export\s+)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/
+              ))
+            )
+              addFn({
+                name: m[2],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                isExported: !!m[1],
+                type: "arrow",
+              });
+
+            // Arrow functions with single param (no parens): const foo = x =>
+            if (
+              (m = line.match(
+                /(export\s+)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s+)?([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>/
+              ))
+            )
+              addFn({
+                name: m[2],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                isExported: !!m[1],
+                type: "arrow",
+              });
+
+            // Function expressions: const foo = function
+            if (
+              (m = line.match(
+                /(export\s+)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s+)?function\s*[(\w]/
+              ))
+            )
+              addFn({
+                name: m[2],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                isExported: !!m[1],
+                type: "function",
+              });
+
+            // Class methods (inside class body): methodName() { or async methodName() {
+            if (
+              (m = line.match(
+                /^\s+(?:async\s+)?([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\([^)]*\)\s*\{/
+              )) &&
+              !line.match(
+                /^s*(if|for|while|switch|catch|function|const|let|var)/
+              )
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: false,
+                type: "method",
+                isClassMethod: true,
+              });
+
+            // Object method shorthand (indented): foo() { or foo: function
+            if (
+              (m = line.match(
+                /^\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*(?:async\s+)?function/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: false,
+                type: "method",
+              });
+
+            // Object property arrow: foo: () =>
+            if (
+              (m = line.match(
+                /^\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*(?:async\s*)?\([^)]*\)\s*=>/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: false,
+                type: "method",
+              });
+          });
+        },
+
+        // Extract functions from other languages
+        extractOtherLanguages: function (
+          content,
+          filename,
+          addFn,
+          extractCode
+        ) {
+          var lines = content.split("\n");
+
+          lines.forEach(function (line, idx) {
+            var lineNum = idx + 1;
+            var m;
+
+            // Go: func name(
+            if (
+              (m = line.match(
+                /^func\s+(?:\([^)]+\)\s*)?([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
+
+            // Java/C#/Kotlin: public void methodName( or similar
+            if (
+              (m = line.match(
+                /(?:public|private|protected|internal|static|final|override|virtual|abstract|async)\s+(?:(?:static|final|override|virtual|abstract|async)\s+)*(?:\w+\s+)?([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: false,
+                type: "method",
+              });
+
+            // Kotlin: fun name(
+            if (
+              (m = line.match(
+                /(?:suspend\s+)?fun\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[<(]/
+              ))
+            )
+              addFn({
+                name: m[1],
+                file: filename,
+                line: lineNum,
+                code: extractCode(lineNum),
+                isTopLevel: true,
+                type: "function",
+              });
