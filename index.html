@@ -4091,3 +4091,142 @@
               kind: "script",
             });
           }
+           if (options && options.includeHandlers && Parser.isHTML(filename)) {
+            var tagRegex = /<([a-z][\w:-]*)([^<>]*?)>/gi;
+            while ((match = tagRegex.exec(content))) {
+              var tagStart = match.index;
+              var insideScript = false;
+              for (var sri = 0; sri < scriptRanges.length; sri++) {
+                if (
+                  tagStart >= scriptRanges[sri].start &&
+                  tagStart < scriptRanges[sri].end
+                ) {
+                  insideScript = true;
+                  break;
+                }
+              }
+              if (insideScript) continue;
+              var attrs = match[2] || "";
+              var attrsStart = match[0].indexOf(attrs);
+              var parsedAttrs = Parser.parseHTMLAttributes(attrs);
+              for (var ai = 0; ai < parsedAttrs.length; ai++) {
+                var attr = parsedAttrs[ai];
+                if (!/^on[a-z][\w:-]*$/i.test(attr.name) || attr.valueStart < 0)
+                  continue;
+                if (!attr.value || !attr.value.trim()) continue;
+                var valueStart = tagStart + attrsStart + attr.valueStart;
+                blocks.push({
+                  content: attr.value,
+                  offset: content.slice(0, valueStart).split("\n").length - 1,
+                  isTS: false,
+                  sourceType: "script",
+                  kind: "handler",
+                });
+              }
+            }
+          }
+
+          return blocks;
+        },
+        hasEmbeddedCode: function (content, filename) {
+          return (
+            Parser.getEmbeddedCodeBlocks(content, filename, {
+              includeHandlers: true,
+            }).length > 0
+          );
+        },
+        isMarkdown: function (n) {
+          return [".md", ".markdown"].some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        // Mirror of tests/md-extractors.mjs::extractMarkdownLinks. Keep in sync.
+        extractMarkdownLinks: function (content) {
+          if (!content) return [];
+          var stripped = content
+            .replace(/```[\s\S]*?```/g, "")
+            .replace(/~~~[\s\S]*?~~~/g, "")
+            .replace(/`[^`\n]*`/g, "");
+          var links = [];
+          var wikiRe = /\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|[^\]]+)?\]\]/g;
+          var m;
+          while ((m = wikiRe.exec(stripped)) !== null) {
+            links.push({ kind: "wikilink", raw: m[0], target: m[1].trim() });
+          }
+          var mdRe =
+            /(!?)\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(([^)\s]+?)(?:\s+"[^"]*")?\)/g;
+          while ((m = mdRe.exec(stripped)) !== null) {
+            if (m[1] === "!") continue;
+            var url = m[3].trim();
+            if (!url) continue;
+            if (/^(?:https?:|mailto:|ftp:|file:|tel:|#)/i.test(url)) continue;
+            var clean = url.split("#")[0].split("?")[0];
+            if (!clean) continue;
+            links.push({ kind: "mdlink", raw: m[0], target: url });
+          }
+          return links;
+        },
+        // Mirror of tests/md-extractors.mjs::resolveMarkdownLink. Keep in sync.
+        resolveMarkdownLink: function (rawTarget, fromPath, allPaths, kind) {
+          if (!rawTarget) return null;
+          var allLower = allPaths.map(function (p) {
+            return p.toLowerCase();
+          });
+          function findExact(candidate) {
+            var c = candidate.toLowerCase();
+            var i = allLower.indexOf(c);
+            return i >= 0 ? allPaths[i] : null;
+          }
+          function findWithMd(candidate) {
+            var hit = findExact(candidate);
+            if (hit) return hit;
+            if (!/\.(md|markdown)$/i.test(candidate)) {
+              var mdHit = findExact(candidate + ".md");
+              if (mdHit) return mdHit;
+              return findExact(candidate + ".markdown");
+            }
+            return null;
+          }
+          if (kind === "mdlink") {
+            var cleanTarget = rawTarget.split("#")[0].split("?")[0];
+            var resolved;
+            if (cleanTarget.charAt(0) === "/") {
+              resolved = cleanTarget.slice(1);
+            } else {
+              var fromDir =
+                fromPath.indexOf("/") >= 0
+                  ? fromPath.split("/").slice(0, -1).join("/")
+                  : "";
+              var parts = (fromDir ? fromDir.split("/") : []).concat(
+                cleanTarget.split("/")
+              );
+              var out = [];
+              for (var pi = 0; pi < parts.length; pi++) {
+                var p = parts[pi];
+                if (p === "" || p === ".") continue;
+                if (p === "..") {
+                  out.pop();
+                  continue;
+                }
+                out.push(p);
+              }
+              resolved = out.join("/");
+            }
+            var direct = findWithMd(resolved);
+            if (direct) return direct;
+          }
+          var baseName = rawTarget.split("#")[0].split("?")[0].split("/").pop();
+          if (!baseName) return null;
+          for (var i = 0; i < allPaths.length; i++) {
+            var pname = allPaths[i].split("/").pop().toLowerCase();
+            if (/\.(md|markdown)$/i.test(baseName)) {
+              if (pname === baseName.toLowerCase()) return allPaths[i];
+            } else if (
+              pname === baseName.toLowerCase() + ".md" ||
+              pname === baseName.toLowerCase() + ".markdown"
+            ) {
+              return allPaths[i];
+            }
+          }
+          return null;
+        },
