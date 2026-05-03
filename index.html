@@ -4841,4 +4841,71 @@
             "onMount",
             "onDestroy",
           ]);
+          // Group functions by name (excluding common names)
+          var fnByName = Object.create(null);
+          allFns.forEach(function (fn) {
+            // Skip non-string names (e.g. numeric object-literal keys from the JS AST walker)
+            if (typeof fn.name !== "string") return;
+            // Skip common/idiomatic names
+            if (commonNames.has(fn.name)) return;
+            // Skip very short names (likely false positives)
+            if (fn.name.length < 3) return;
+            // Skip class methods (same method name in different classes is normal)
+            if (fn.isClassMethod) return;
+            // Skip Python class-scoped names (ClassName.method)
+            if (fn.name.includes(".")) return;
+            // Skip decorated functions (framework handlers have similar structures by design)
+            if (fn.decorators && fn.decorators.length > 0) return;
+
+            if (!fnByName[fn.name]) fnByName[fn.name] = [];
+            fnByName[fn.name].push(fn);
+          });
+
+          // Find duplicate names across different files - only report if suspicious
+          Object.entries(fnByName).forEach(function (entry) {
+            var name = entry[0],
+              fns = entry[1];
+            var uniqueFiles = [
+              ...new Set(
+                fns.map(function (f) {
+                  return f.file;
+                })
+              ),
+            ];
+
+            // Only flag if in 3+ files (2 files might be intentional)
+            if (uniqueFiles.length >= 3) {
+              // Check if the code is actually similar (not just same name)
+              var codeSamples = fns.filter(function (f) {
+                return f.code && f.code.length > 30;
+              });
+              if (codeSamples.length >= 2) {
+                // Compare first two code samples for similarity
+                var sim = Parser.codeSimilarity(
+                  codeSamples[0].code,
+                  codeSamples[1].code
+                );
+                if (sim > 0.5) {
+                  // More than 50% similar - likely a real duplicate
+                  duplicates.push({
+                    type: "name",
+                    name: name,
+                    count: uniqueFiles.length,
+                    files: fns.map(function (f) {
+                      return { file: f.file, line: f.line };
+                    }),
+                    similarity: Math.round(sim * 100),
+                    suggestion:
+                      'Function "' +
+                      name +
+                      '" appears in ' +
+                      uniqueFiles.length +
+                      " files with " +
+                      Math.round(sim * 100) +
+                      "% similarity - consider consolidating",
+                  });
+                }
+              }
+            }
+          });
           
