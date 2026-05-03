@@ -5218,5 +5218,126 @@
               impact: "Improves code navigation and testing",
             });
           }
+          // Based on duplicates
+          if (data.duplicates && data.duplicates.length > 0) {
+            var nameDups = data.duplicates.filter(function (d) {
+              return d.type === "name";
+            });
+            var codeDups = data.duplicates.filter(function (d) {
+              return d.type === "code";
+            });
+            if (nameDups.length) {
+              suggestions.push({
+                priority: "medium",
+                icon: "copy",
+                title: "Resolve Naming Conflicts",
+                desc:
+                  nameDups.length +
+                  " function names are duplicated across files. This can cause confusion.",
+                action:
+                  "Rename functions to be more specific or consolidate into shared module",
+                impact: "Prevents bugs from importing wrong function",
+              });
+            }
+            if (codeDups.length) {
+              suggestions.push({
+                priority: "high",
+                icon: "box",
+                title: "Extract Duplicated Code",
+                desc:
+                  codeDups.length +
+                  " instances of similar code found. DRY principle violation.",
+                action: "Create shared utility functions",
+                impact: "Reduces maintenance burden and potential bugs",
+              });
+            }
+          }
+          // Based on layer violations
+          if (data.layerViolations && data.layerViolations.length > 0) {
+            suggestions.push({
+              priority: "high",
+              icon: "layers",
+              title: "Fix Architecture Violations",
+              desc:
+                data.layerViolations.length +
+                " layer violations found. Lower layers should not depend on higher layers.",
+              action: "Invert dependencies or use interfaces/events",
+              impact: "Improves architecture and testability",
+            });
+          }
+          // Based on security
+          var highSec = data.securityIssues
+            ? data.securityIssues.filter(function (s) {
+                return s.severity === "high";
+              })
+            : [];
+          if (highSec.length) {
+            suggestions.push({
+              priority: "critical",
+              icon: "shield",
+              title: "Fix Security Issues",
+              desc: highSec.length + " high-severity security issues found.",
+              action: "Address hardcoded secrets, injection risks immediately",
+              impact: "Prevents potential security breaches",
+            });
+          }
+          // Test coverage hint
+          var testFiles = data.files.filter(function (f) {
+            return (
+              f.name.includes(".test.") ||
+              f.name.includes(".spec.") ||
+              f.path.includes("__tests__")
+            );
+          });
+          var testRatio =
+            data.files.length > 0
+              ? (testFiles.length / data.files.length) * 100
+              : 0;
+          if (testRatio < 10 && data.files.length > 10) {
+            suggestions.push({
+              priority: "medium",
+              icon: "beaker",
+              title: "Add Test Coverage",
+              desc:
+                "Only " +
+                testFiles.length +
+                " test files found (" +
+                Math.round(testRatio) +
+                "%). Consider adding more tests.",
+              action:
+                "Focus on testing critical paths and high-complexity files",
+              impact: "Prevents regressions and improves confidence",
+            });
+          }
+          return suggestions.sort(function (a, b) {
+            var p = { critical: 0, high: 1, medium: 2, low: 3 };
+            return p[a.priority] - p[b.priority];
+          });
+        },
+        detectSecurity: function (files) {
+          var issues = [];
+          files.forEach(function (f) {
+            var scanContent = getSecurityScanContent(f);
+            if (!scanContent) return;
+            var lines = scanContent.split("\n");
+            lines.forEach(function (line, idx) {
+              if (
+                line.match(
+                  /(?:password|passwd|pwd|secret|api_key|apikey|token|auth)\s*[=:]\s*['"][^'"]{4,}['"]/i
+                ) &&
+                !line.includes("process.env") &&
+                !line.includes("config.")
+              ) {
+                issues.push({
+                  severity: "high",
+                  title: "Hardcoded Secret",
+                  file: f.name,
+                  path: f.path,
+                  line: idx + 1,
+                  desc: "Credentials should never be hardcoded. Use environment variables or a secrets manager.",
+                  code: line.trim().substring(0, 80),
+                });
+              }
+            });
 
 
