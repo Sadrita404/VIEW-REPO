@@ -3570,3 +3570,161 @@
           setTimeout(resolve, 0);
         });
       }
+
+      // ---------------------------------------------------------------------------
+      // Parser And Static Analysis
+      // ---------------------------------------------------------------------------
+
+      // ===== VIEW REPO_ANALYZER_START =====
+      const Parser = {
+        // Tree-sitter parsers are loaded lazily from CDN and used when a language has
+        // a stable grammar path. Regex remains an explicit fallback, not a silent lie.
+        _tsRuntimePromise: null,
+        _tsLanguagePromises: Object.create(null),
+        _tsLanguages: Object.create(null),
+        _tsParsers: Object.create(null),
+        _callCandidateThreshold: 250,
+        treeSitterWasmBase:
+          "https://cdn.jsdelivr.net/npm/tree-sitter-wasms@0.1.13/out/",
+        treeSitterGrammars: {
+          python: {
+            grammar: "python",
+            exts: [".py", ".pyw", ".pyi"],
+            coverage: "calls",
+          },
+          javascript: {
+            grammar: "javascript",
+            exts: [".js", ".jsx", ".mjs", ".cjs"],
+            coverage: "available",
+          },
+          typescript: {
+            grammar: "typescript",
+            exts: [".ts"],
+            coverage: "available",
+          },
+          tsx: { grammar: "tsx", exts: [".tsx"], coverage: "available" },
+          go: { grammar: "go", exts: [".go"], coverage: "available" },
+          rust: { grammar: "rust", exts: [".rs"], coverage: "available" },
+          java: { grammar: "java", exts: [".java"], coverage: "available" },
+          ruby: { grammar: "ruby", exts: [".rb"], coverage: "available" },
+          php: { grammar: "php", exts: [".php"], coverage: "available" },
+          c: { grammar: "c", exts: [".c", ".h"], coverage: "available" },
+          cpp: {
+            grammar: "cpp",
+            exts: [".cpp", ".cc", ".hpp"],
+            coverage: "available",
+          },
+          csharp: { grammar: "c_sharp", exts: [".cs"], coverage: "available" },
+          swift: { grammar: "swift", exts: [".swift"], coverage: "available" },
+          kotlin: {
+            grammar: "kotlin",
+            exts: [".kt", ".kts"],
+            coverage: "available",
+          },
+          scala: { grammar: "scala", exts: [".scala"], coverage: "available" },
+          elixir: {
+            grammar: "elixir",
+            exts: [".ex", ".exs"],
+            coverage: "available",
+          },
+          lua: { grammar: "lua", exts: [".lua"], coverage: "available" },
+          bash: {
+            grammar: "bash",
+            exts: [".sh", ".bash", ".zsh", ".fish"],
+            coverage: "available",
+          },
+        },
+        treeSitterFetchTimeoutMs: 8000,
+        _withTimeout: function (promise, ms) {
+          return Promise.race([
+            promise,
+            new Promise(function (_, reject) {
+              setTimeout(function () {
+                reject(new Error("tree-sitter fetch timed out"));
+              }, ms);
+            }),
+          ]);
+        },
+        initTreeSitter: async function () {
+          if (this._tsRuntimePromise) return this._tsRuntimePromise;
+          this._tsRuntimePromise = (async () => {
+            if (typeof TreeSitter === "undefined") return null;
+            try {
+              await Parser._withTimeout(
+                TreeSitter.init({
+                  locateFile: function (scriptName) {
+                    return (
+                      "https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.8/" +
+                      scriptName
+                    );
+                  },
+                }),
+                Parser.treeSitterFetchTimeoutMs
+              );
+              return TreeSitter;
+            } catch (e) {
+              return null;
+            }
+          })();
+          return this._tsRuntimePromise;
+        },
+        getTreeSitterConfig: function (filename) {
+          var lower = (filename || "").toLowerCase();
+          var configs = Object.values(Parser.treeSitterGrammars);
+          for (var i = 0; i < configs.length; i++) {
+            if (
+              configs[i].exts.some(function (ext) {
+                return lower.endsWith(ext);
+              })
+            ) {
+              return configs[i];
+            }
+          }
+          return null;
+        },
+        loadTreeSitterLanguage: async function (config) {
+          if (!config) return null;
+          if (this._tsLanguages[config.grammar])
+            return this._tsLanguages[config.grammar];
+          if (this._tsLanguagePromises[config.grammar])
+            return this._tsLanguagePromises[config.grammar];
+          this._tsLanguagePromises[config.grammar] = (async () => {
+            var runtime = await Parser.initTreeSitter();
+            if (!runtime) return null;
+            try {
+              var lang = await Parser._withTimeout(
+                runtime.Language.load(
+                  Parser.treeSitterWasmBase +
+                    "tree-sitter-" +
+                    config.grammar +
+                    ".wasm"
+                ),
+                Parser.treeSitterFetchTimeoutMs
+              );
+              var parser = new runtime();
+              parser.setLanguage(lang);
+              Parser._tsLanguages[config.grammar] = lang;
+              Parser._tsParsers[config.grammar] = parser;
+              return lang;
+            } catch (e) {
+              return null;
+            }
+          })();
+          return this._tsLanguagePromises[config.grammar];
+        },
+        prepareTreeSitter: async function (files) {
+          var configs = new Map();
+          (files || []).forEach(function (file) {
+            var cfg = Parser.getTreeSitterConfig(file.path || file.name);
+            if (cfg && cfg.coverage === "calls") configs.set(cfg.grammar, cfg);
+          });
+          await Promise.all(
+            Array.from(configs.values()).map(function (cfg) {
+              return Parser.loadTreeSitterLanguage(cfg);
+            })
+          );
+        },
+        getLoadedTreeSitterParser: function (filename) {
+          var cfg = Parser.getTreeSitterConfig(filename);
+          return cfg ? Parser._tsParsers[cfg.grammar] || null : null;
+        },
