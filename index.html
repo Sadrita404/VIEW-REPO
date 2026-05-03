@@ -4908,5 +4908,118 @@
               }
             }
           });
-          
+           // Find similar code blocks (improved algorithm)
+          // Use structural hash that captures the essence of the code
+          var codeGroups = Object.create(null);
+          allFns.forEach(function (fn) {
+            if (!fn.code || fn.code.length < 80) return; // Skip very short functions
+
+            // Create a structural fingerprint
+            var fingerprint = Parser.codeFingerprint(fn.code);
+            if (!fingerprint) return;
+
+            if (!codeGroups[fingerprint]) codeGroups[fingerprint] = [];
+            codeGroups[fingerprint].push(fn);
+          });
+
+          Object.values(codeGroups).forEach(function (fns) {
+            if (fns.length > 1) {
+              var uniqueFiles = [
+                ...new Set(
+                  fns.map(function (f) {
+                    return f.file;
+                  })
+                ),
+              ];
+              // Must be in different files to be a real duplication issue
+              if (uniqueFiles.length > 1) {
+                // Verify with actual similarity check
+                var sim = Parser.codeSimilarity(fns[0].code, fns[1].code);
+                if (sim > 0.7) {
+                  // 70% or more similar
+                  duplicates.push({
+                    type: "code",
+                    name: fns
+                      .map(function (f) {
+                        return f.name;
+                      })
+                      .join(", "),
+                    count: fns.length,
+                    files: fns.map(function (f) {
+                      return { file: f.file, name: f.name, line: f.line };
+                    }),
+                    similarity: Math.round(sim * 100),
+                    suggestion:
+                      "Similar code blocks (" +
+                      Math.round(sim * 100) +
+                      "% match) - consider extracting to a shared utility",
+                  });
+                }
+              }
+            }
+          });
+
+          return duplicates;
+        },
+
+        // Calculate code similarity using normalized comparison (0-1 scale)
+        codeSimilarity: function (code1, code2) {
+          if (!code1 || !code2) return 0;
+
+          // Normalize both code blocks
+          function normalize(code) {
+            return code
+              .replace(/\/\/.*$/gm, "") // Remove JS single-line comments
+              .replace(/#.*$/gm, "") // Remove Python/Ruby comments
+              .replace(/\/\*[\s\S]*?\*\//g, "") // Remove multi-line comments
+              .replace(/"""[\s\S]*?"""/g, "S") // Remove Python docstrings (triple double)
+              .replace(/'''[\s\S]*?'''/g, "S") // Remove Python docstrings (triple single)
+              .replace(/['"`][^'"`]*['"`]/g, "S") // Normalize strings
+              .replace(/\b\d+\.?\d*\b/g, "N") // Normalize numbers
+              .replace(/\s+/g, " ") // Normalize whitespace
+              .trim();
+          }
+
+          var n1 = normalize(code1);
+          var n2 = normalize(code2);
+
+          if (n1 === n2) return 1;
+          if (n1.length === 0 || n2.length === 0) return 0;
+
+          // Use longest common subsequence ratio
+          var lcs = Parser.lcsLength(n1, n2);
+          var maxLen = Math.max(n1.length, n2.length);
+          return lcs / maxLen;
+        },
+
+        // Longest common subsequence length (optimized for similarity)
+        lcsLength: function (s1, s2) {
+          // Use simplified approach for performance
+          if (s1.length > 500 || s2.length > 500) {
+            // For long strings, use sampling
+            s1 = s1.substring(0, 500);
+            s2 = s2.substring(0, 500);
+          }
+
+          var m = s1.length,
+            n = s2.length;
+          var prev = new Array(n + 1).fill(0);
+          var curr = new Array(n + 1).fill(0);
+
+          for (var i = 1; i <= m; i++) {
+            for (var j = 1; j <= n; j++) {
+              if (s1[i - 1] === s2[j - 1]) {
+                curr[j] = prev[j - 1] + 1;
+              } else {
+                curr[j] = Math.max(prev[j], curr[j - 1]);
+              }
+            }
+            var tmp = prev;
+            prev = curr;
+            curr = tmp;
+            curr.fill(0);
+          }
+          return prev[n];
+        },
+
 
