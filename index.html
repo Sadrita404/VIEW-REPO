@@ -4662,3 +4662,35 @@
                 ),
               },
             });
+            // VBA-specific anti-patterns
+          var vbaGodFiles = files.filter(function (f) {
+            return f.isCode !== false && f.functions && f.functions.length > 20;
+          });
+          if (vbaGodFiles.length)
+            patterns.push({
+              name: "VBA God Module",
+              icon: "warning",
+              desc: "VBA modules with 20+ procedures. Consider splitting into smaller modules.",
+              severity: "warning",
+              isAnti: true,
+              files: vbaGodFiles.map(function (f) {
+                return {
+                  name: f.name,
+                  path: f.path,
+                  fns: f.functions.length,
+                  lines: f.lines,
+                };
+              }),
+              metrics: {
+                files: vbaGodFiles.length,
+                avgFns: Math.round(
+                  vbaGodFiles.reduce(function (s, f) {
+                    return s + f.functions.length;
+                  }, 0) / vbaGodFiles.length
+                ),
+              },
+            });
+          return patterns;
+        },
+        detectDuplicates: function (files, allFns) {
+          var duplicates = [];
