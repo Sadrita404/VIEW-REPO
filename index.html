@@ -3936,3 +3936,117 @@
             })
           );
         },
+        isText: function (n) {
+          var lower = n.toLowerCase();
+          return (
+            Parser.textExts.some(function (e) {
+              return lower.endsWith(e);
+            }) || Parser.textNames.indexOf(lower) >= 0
+          );
+        },
+        isBinary: function (n) {
+          return Parser.binExts.some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        isIncluded: function (n) {
+          return !Parser.isBinary(n) && (Parser.isCode(n) || Parser.isText(n));
+        },
+        isScriptContainer: function (n) {
+          return Parser.scriptContainerExts.some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        isVBA: function (n) {
+          return [
+            ".vba",
+            ".bas",
+            ".cls",
+            ".xlsm",
+            ".xlam",
+            ".xlsb",
+            ".xla",
+            ".xlw",
+          ].some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        isHTML: function (n) {
+          return [".html", ".htm", ".xhtml"].some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        isCSS: function (n) {
+          return [".css", ".scss", ".sass", ".less"].some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        isJSON: function (n) {
+          return [".json"].some(function (e) {
+            return n.toLowerCase().endsWith(e);
+          });
+        },
+        parseHTMLAttributes: function (attrs) {
+          if (!attrs) return [];
+          var parsed = [];
+          var attrRegex =
+            /([^\s"'<>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+          var match;
+          while ((match = attrRegex.exec(attrs))) {
+            var value =
+              match[2] !== undefined
+                ? match[2]
+                : match[3] !== undefined
+                ? match[3]
+                : match[4];
+            parsed.push({
+              name: (match[1] || "").toLowerCase(),
+              value: value === undefined ? "" : value,
+              valueStart:
+                value === undefined
+                  ? -1
+                  : match.index + match[0].indexOf(value),
+            });
+          }
+          return parsed;
+        },
+        getScriptTagAttribute: function (attrs, name) {
+          var parsed = Parser.parseHTMLAttributes(attrs);
+          var lowered = name.toLowerCase();
+          for (var i = 0; i < parsed.length; i++) {
+            if (parsed[i].name === lowered) return parsed[i].value;
+          }
+          return "";
+        },
+        getScriptBlockInfo: function (attrs) {
+          var type = (Parser.getScriptTagAttribute(attrs, "type") || "")
+            .split(";")[0]
+            .trim()
+            .toLowerCase();
+          var lang = (Parser.getScriptTagAttribute(attrs, "lang") || "")
+            .split(";")[0]
+            .trim()
+            .toLowerCase();
+          var info = { executable: false, isTS: false, sourceType: "script" };
+
+          if (!type) {
+            info.executable = true;
+          } else if (type === "module") {
+            info.executable = true;
+            info.sourceType = "module";
+          } else if (
+            type.match(/^(?:text|application)\/(?:x-)?(?:java|ecma)script$/) ||
+            type === "text/babel" ||
+            type === "text/jsx" ||
+            type === "application/jsx" ||
+            type === "application/babel"
+          ) {
+            info.executable = true;
+          } else if (
+            type.match(/^(?:text|application)\/(?:x-)?typescript$/) ||
+            type === "text/tsx" ||
+            type === "application/tsx"
+          ) {
+            info.executable = true;
+            info.isTS = true;
+          }
