@@ -3277,3 +3277,101 @@
           flex: 0 0 auto;
         }
       }
+
+            @media (max-width: 420px) {
+        .mobile-action-stack {
+          gap: 4px;
+        }
+        .mobile-icon-btn {
+          width: 32px;
+          height: 32px;
+          min-height: 32px;
+        }
+        .mobile-secondary-row .auth-select {
+          width: 106px;
+        }
+        .mobile-secondary-row .top-btn,
+        .mobile-secondary-row .refresh-btn,
+        .mobile-secondary-row .reset-btn {
+          padding: 0 9px;
+        }
+        .canvas-toolbar {
+          bottom: 70px;
+        }
+        .legend {
+          bottom: 70px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      /*
+       * VIEW REPO is intentionally shipped as one HTML file.
+       *
+       * The file is organized in five broad sections:
+       * 1. Shared constants, exclusion helpers, and browser-yield utilities.
+       * 2. Parser and static-analysis primitives.
+       * 3. GitHub API adapter and repository scanning.
+       * 4. Shared analysis pipeline plus inline Web Worker fallback.
+       * 5. React UI, local folder/ZIP ingestion, visualization, and modals.
+       */
+      const { useState, useEffect, useRef, useMemo, useCallback } = React;
+      const COLORS = [
+        "#4d9fff",
+        "#a78bfa",
+        "#22d3ee",
+        "#00ff9d",
+        "#ff9f43",
+        "#ec4899",
+        "#ff5f5f",
+        "#84cc16",
+      ];
+      const LAYER_COLORS = {
+        ui: "#4d9fff",
+        components: "#22d3ee",
+        services: "#a78bfa",
+        utils: "#00ff9d",
+        data: "#ff9f43",
+        config: "#ec4899",
+        test: "#f59e0b",
+        modules: "#a78bfa",
+        forms: "#22d3ee",
+        classes: "#ff9f43",
+        note: "#c084fc",
+      };
+      const IGNORE = new Set([
+        "node_modules",
+        ".git",
+        "vendor",
+        "dist",
+        "build",
+        "__pycache__",
+        ".next",
+        "coverage",
+        ".venv",
+        "venv",
+        "env",
+        ".env",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "__pypackages__",
+        ".eggs",
+        "__macosx",
+      ]);
+      const DEFAULT_EXCLUDE_CHIPS = [
+        ".git",
+        "node_modules",
+        "dist",
+        "build",
+        "coverage",
+        "__pycache__",
+        ".next",
+        ".venv",
+        "venv",
+        ".tox",
+      ];
+      const ANALYSIS_LIMITS = { repoSoft: 300, repoMax: 750, localSoft: 500 };
