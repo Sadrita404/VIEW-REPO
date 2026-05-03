@@ -5809,3 +5809,75 @@
               parseContent = Parser.stripTypeScript(scriptContent);
             }
 
+            // Parse clean JS with acorn
+            try {
+              var ast = acorn.parse(parseContent, {
+                ecmaVersion: 2022,
+                sourceType: "module",
+                allowHashBang: true,
+                allowAwaitOutsideFunction: true,
+                allowImportExportEverywhere: true,
+                allowReturnOutsideFunction: true,
+                locations: true,
+              });
+              parseSuccess = true;
+
+              // Walk the AST to find ALL function definitions
+              function walk(node, scope, parentIsExport) {
+                if (!node || typeof node !== "object") return;
+
+                var isTopLevel = scope === 0;
+
+                // FunctionDeclaration: function foo() {}
+                if (
+                  node.type === "FunctionDeclaration" &&
+                  node.id &&
+                  node.id.name
+                ) {
+                  var line =
+                    (node.loc ? node.loc.start.line : 1) + scriptOffset;
+                  var endLine =
+                    (node.loc ? node.loc.end.line : line) + scriptOffset;
+                  addFn({
+                    name: node.id.name,
+                    file: filename,
+                    line: line,
+                    code: extractCode(line, endLine),
+                    isTopLevel: isTopLevel,
+                    isExported: parentIsExport || false,
+                    type: "function",
+                  });
+                }
+
+                // VariableDeclaration: const foo = () => {} or const foo = function() {}
+                if (node.type === "VariableDeclaration") {
+                  node.declarations.forEach(function (decl) {
+                    if (decl.id && decl.id.type === "Identifier" && decl.init) {
+                      var init = decl.init;
+                      // Direct function expression or arrow function ONLY
+                      // NOT CallExpression (e.g., array.map(x => x))
+                      if (
+                        init.type === "FunctionExpression" ||
+                        init.type === "ArrowFunctionExpression"
+                      ) {
+                        var line =
+                          (decl.loc ? decl.loc.start.line : 1) + scriptOffset;
+                        var endLine =
+                          (decl.loc ? decl.loc.end.line : line) + scriptOffset;
+                        addFn({
+                          name: decl.id.name,
+                          file: filename,
+                          line: line,
+                          code: extractCode(line, endLine),
+                          isTopLevel: isTopLevel,
+                          isExported: parentIsExport || false,
+                          type:
+                            init.type === "ArrowFunctionExpression"
+                              ? "arrow"
+                              : "function",
+                        });
+                      }
+                    }
+                  });
+                }
+                
