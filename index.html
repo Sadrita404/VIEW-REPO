@@ -5340,4 +5340,174 @@
               }
             });
 
+            if (
+              scanContent.match(/query\s*\(\s*['"`][^'"`]*\s*\+/) ||
+              scanContent.match(/execute\s*\(\s*['"`][^'"`]*\$\{/) ||
+              scanContent.match(/\$\{.*\}.*(?:SELECT|INSERT|UPDATE|DELETE)/i)
+            ) {
+              var m = scanContent.match(
+                /.*(query|execute|SELECT|INSERT|UPDATE|DELETE).*(\+|\$\{).*/i
+              );
+              issues.push({
+                severity: "high",
+                title: "SQL Injection Risk",
+                file: f.name,
+                path: f.path,
+                desc: "String concatenation in SQL queries. Use parameterized queries instead.",
+                code: m ? m[0].trim().substring(0, 80) : "",
+              });
+            }
+            var hasInnerHtmlAssignment = scanContent.match(/innerHTML\s*=/);
+            var hasDangerousHtmlRender = scanContent.match(
+              /dangerouslySetInnerHTML/
+            );
+            var isSafePreviewRender =
+              !hasInnerHtmlAssignment &&
+              hasDangerousHtmlRender &&
+              isSanitizedPreviewRenderer(f.content || "");
+            if (
+              (hasInnerHtmlAssignment || hasDangerousHtmlRender) &&
+              !isSafePreviewRender
+            ) {
+              issues.push({
+                severity: "high",
+                title: "XSS Vulnerability",
+                file: f.name,
+                path: f.path,
+                desc: "Direct HTML injection can lead to XSS attacks. Sanitize user input.",
+                code: "",
+              });
+            }
+            if (scanContent.includes("eval(")) {
+              var evalLine = lines.findIndex(function (l) {
+                return l.includes("eval(");
+              });
+              issues.push({
+                severity: "medium",
+                title: "Dynamic Code Execution",
+                file: f.name,
+                path: f.path,
+                line: evalLine + 1,
+                desc: "eval() executes arbitrary code. Avoid if possible or validate input strictly.",
+                code:
+                  evalLine >= 0 ? lines[evalLine].trim().substring(0, 80) : "",
+              });
+            }
+            if (
+              scanContent.includes("Function(") ||
+              scanContent.match(/new\s+Function\s*\(/)
+            ) {
+              issues.push({
+                severity: "medium",
+                title: "Function Constructor",
+                file: f.name,
+                path: f.path,
+                desc: "Function constructor is similar to eval(). Consider alternatives.",
+                code: "",
+              });
+            }
+            if (
+              scanContent.match(/\.exec\s*\(/) ||
+              scanContent.match(/child_process/)
+            ) {
+              issues.push({
+                severity: "medium",
+                title: "Command Execution",
+                file: f.name,
+                path: f.path,
+                desc: "Shell command execution detected. Ensure input is sanitized to prevent injection.",
+                code: "",
+              });
+            }
+            if (scanContent.match(/console\.(log|debug|info)\(/)) {
+              var consoleCount = (
+                scanContent.match(/console\.(log|debug|info)\(/g) || []
+              ).length;
+              if (consoleCount > 3) {
+                issues.push({
+                  severity: "low",
+                  title: "Debug Statements",
+                  file: f.name,
+                  path: f.path,
+                  desc:
+                    consoleCount +
+                    " console statements found. Remove before production.",
+                  code: "",
+                });
+              }
+            }
+            // VBA-specific security checks
+            if (scanContent.match(/SendKeys\s*\(/i)) {
+              issues.push({
+                severity: "high",
+                title: "SendKeys Usage",
+                file: f.name,
+                path: f.path,
+                desc: "SendKeys can be exploited for code injection. Avoid using SendKeys.",
+                code: "",
+              });
+            }
+            if (scanContent.match(/Shell\s*\(/i)) {
+              issues.push({
+                severity: "high",
+                title: "Shell Command Execution",
+                file: f.name,
+                path: f.path,
+                desc: "Shell() executes system commands. Ensure input is validated.",
+                code: "",
+              });
+            }
+            if (
+              scanContent.match(/CreateObject\s*\(\s*["']WScript\.Shell["']/i)
+            ) {
+              issues.push({
+                severity: "high",
+                title: "WScript.Shell Creation",
+                file: f.name,
+                path: f.path,
+                desc: "Creating WScript.Shell object allows command execution. Use with caution.",
+                code: "",
+              });
+            }
+            if (scanContent.match(/Application\.Run\s*\(/i)) {
+              issues.push({
+                severity: "medium",
+                title: "Dynamic Code Execution",
+                file: f.name,
+                path: f.path,
+                desc: "Application.Run can execute arbitrary code. Validate input.",
+                code: "",
+              });
+            }
+            if (scanContent.match(/On Error Resume Next/i)) {
+              var errorResumeCount = (
+                scanContent.match(/On Error Resume Next/gi) || []
+              ).length;
+              if (errorResumeCount > 2) {
+                issues.push({
+                  severity: "medium",
+                  title: "Excessive Error Suppression",
+                  file: f.name,
+                  path: f.path,
+                  desc:
+                    errorResumeCount +
+                    ' instances of "On Error Resume Next" found. This can hide bugs.',
+                  code: "",
+                });
+              }
+            }
+            if (scanContent.match(/TODO|FIXME|HACK|XXX/)) {
+              var todoCount = (scanContent.match(/TODO|FIXME|HACK|XXX/g) || [])
+                .length;
+              issues.push({
+                severity: "low",
+                title: "Code Comments",
+                file: f.name,
+                path: f.path,
+                desc:
+                  todoCount +
+                  " TODO/FIXME comments found. Address before release.",
+                code: "",
+              });
+            }
 
