@@ -7321,3 +7321,200 @@
                     return true;
                   return false;
                 }
+
+                // Walk the CST: every identifier that matches a function name
+                // and is NOT a definition is counted as a usage reference.
+                // tree-sitter naturally excludes identifiers inside strings/comments
+                // because those are parsed as string/comment nodes, not identifiers.
+                function walkPy(node) {
+                  if (
+                    node.type === "identifier" &&
+                    fnSet.has(node.text) &&
+                    !isPyDefName(node)
+                  ) {
+                    calls[node.text]++;
+                  }
+                  for (var i = 0; i < node.childCount; i++) {
+                    walkPy(node.child(i));
+                  }
+                }
+                walkPy(root);
+                tree.delete();
+                return calls;
+              } catch (tsErr) {
+                // tree-sitter parse failed, fall through to tokenizer fallback
+              }
+            }
+
+            // Fallback: token-level analysis with string/comment stripping
+            var cleanContent = Parser.stripPythonNonCode(content);
+            return Parser.countCandidateCalls(cleanContent, fnNames, {
+              isPython: true,
+            });
+          }
+
+          if (isJS && typeof acorn !== "undefined") {
+            try {
+              // Use Babel (real parser) to handle JSX and TypeScript
+              // Babel transforms JSX → React.createElement calls and strips TS types,
+              // so acorn can parse the result into a proper AST for accurate call detection
+              var jsContent = content;
+              if (typeof Babel !== "undefined") {
+                try {
+                  var babelPresets = ["react"];
+                  if (ext === "ts" || ext === "tsx")
+                    babelPresets.push("typescript");
+                  var babelResult = Babel.transform(content, {
+                    presets: babelPresets,
+                    filename: definingFile || "file.js",
+                    sourceType: "module",
+                    retainLines: true,
+                  });
+                  jsContent = babelResult.code;
+                } catch (babelErr) {
+                  // Babel failed, fall back to manual TypeScript stripping
+                  jsContent = content
+                    .replace(
+                      /:\s*[A-Za-z_$][\w$<>,\s|&\[\]]*(?=\s*[=,\)\}\];])/g,
+                      ""
+                    )
+                    .replace(
+                      /\bas\s+[A-Za-z_$][\w$<>,\s|&\[\]]*(?=\s*[,\)\}\];])/g,
+                      ""
+                    )
+                    .replace(/<[A-Za-z_$][\w$<>,\s|&\[\]]*>(?=\s*\()/g, "")
+                    .replace(/^import\s+type\s+.*/gm, "")
+                    .replace(/^export\s+type\s+.*/gm, "")
+                    .replace(/^export\s+interface\s+.*/gm, "")
+                    .replace(/interface\s+[A-Za-z_$][\w$]*\s*\{[^}]*\}/g, "")
+                    .replace(/type\s+[A-Za-z_$][\w$]*\s*=\s*[^;]+;/g, "");
+                }
+              } else {
+                jsContent = content
+                  .replace(
+                    /:\s*[A-Za-z_$][\w$<>,\s|&\[\]]*(?=\s*[=,\)\}\];])/g,
+                    ""
+                  )
+                  .replace(
+                    /\bas\s+[A-Za-z_$][\w$<>,\s|&\[\]]*(?=\s*[,\)\}\];])/g,
+                    ""
+                  )
+                  .replace(/<[A-Za-z_$][\w$<>,\s|&\[\]]*>(?=\s*\()/g, "")
+                  .replace(/^import\s+type\s+.*/gm, "")
+                  .replace(/^export\s+type\s+.*/gm, "")
+                  .replace(/^export\s+interface\s+.*/gm, "")
+                  .replace(/interface\s+[A-Za-z_$][\w$]*\s*\{[^}]*\}/g, "")
+                  .replace(/type\s+[A-Za-z_$][\w$]*\s*=\s*[^;]+;/g, "");
+              }
+
+              var ast = acorn.parse(jsContent, {
+                ecmaVersion: 2022,
+                sourceType: "module",
+                allowHashBang: true,
+                allowAwaitOutsideFunction: true,
+                allowImportExportEverywhere: true,
+                locations: true,
+                tolerant: true,
+              });
+
+              var fnSet = new Set(fnNames);
+
+              function walk(node, inDeclaration) {
+                if (!node || typeof node !== "object") return;
+
+                // Track if we're in a function declaration to skip counting the name
+                var isDecl =
+                  node.type === "FunctionDeclaration" ||
+                  node.type === "VariableDeclarator";
+
+                // CallExpression: foo() or foo.bar()
+                if (node.type === "CallExpression") {
+                  var callee = node.callee;
+                  if (callee.type === "Identifier" && fnSet.has(callee.name)) {
+                    var line = callee.loc ? callee.loc.start.line : 0;
+                    // Don't count if this is the definition line
+                    if (
+                      !defLines[callee.name] ||
+                      defLines[callee.name] !== line
+                    ) {
+                      calls[callee.name]++;
+                    }
+                  }
+                  // Also check arguments for function references
+                  node.arguments.forEach(function (arg) {
+                    if (arg.type === "Identifier" && fnSet.has(arg.name)) {
+                      refs[arg.name]++;
+                    }
+                  });
+                }
+
+                // Function passed as reference (callback): arr.map(fn), addEventListener('click', fn)
+                if (
+                  node.type === "Identifier" &&
+                  fnSet.has(node.name) &&
+                  !inDeclaration
+                ) {
+                  // This is handled via parent context - check if parent is not a CallExpression callee
+                  // refs tracking happens in CallExpression arguments above
+                }
+
+                // Array element or object property value containing function ref
+                if (node.type === "ArrayExpression") {
+                  node.elements.forEach(function (el) {
+                    if (el && el.type === "Identifier" && fnSet.has(el.name)) {
+                      refs[el.name]++;
+                    }
+                  });
+                }
+                if (
+                  node.type === "Property" &&
+                  node.value &&
+                  node.value.type === "Identifier" &&
+                  fnSet.has(node.value.name)
+                ) {
+                  refs[node.value.name]++;
+                }
+
+                // Recurse
+                for (var key in node) {
+                  if (
+                    key === "loc" ||
+                    key === "range" ||
+                    key === "start" ||
+                    key === "end"
+                  )
+                    continue;
+                  var child = node[key];
+                  var nextInDecl = isDecl && (key === "id" || key === "key");
+                  if (Array.isArray(child)) {
+                    child.forEach(function (c) {
+                      walk(c, nextInDecl);
+                    });
+                  } else if (child && typeof child === "object" && child.type) {
+                    walk(child, nextInDecl);
+                  }
+                }
+              }
+
+              walk(ast, false);
+
+              // Combine calls and refs
+              fnNames.forEach(function (fn) {
+                calls[fn] = calls[fn] + (refs[fn] || 0);
+              });
+
+              return calls;
+            } catch (e) {
+              // Fall back to regex but be more careful
+            }
+          }
+
+          // Fallback: regex-based but more careful
+          return Parser.countCandidateCalls(content, fnNames, {
+            isJS: isJS,
+            isVBA: isVBA,
+          });
+        },
+      };
+
+      
