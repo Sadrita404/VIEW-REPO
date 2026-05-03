@@ -4230,3 +4230,110 @@
           }
           return null;
         },
+        detectLayer: function (p) {
+          var l = p.toLowerCase();
+          // Test files
+          if (
+            l.includes("/test") ||
+            l.match(/test_\w+\.py$/) ||
+            l.match(/\w+_test\.py$/) ||
+            l.includes("conftest")
+          )
+            return "test";
+          // UI/View layer
+          if (
+            l.includes("/ui/") ||
+            l.includes("/views/") ||
+            l.includes("/pages/") ||
+            l.includes("/templates/") ||
+            l.includes("/static/")
+          )
+            return "ui";
+          if (l.includes("/component")) return "components";
+          // Service/API layer
+          if (
+            l.includes("/service") ||
+            l.includes("/api/") ||
+            l.includes("/controller") ||
+            l.includes("/endpoint") ||
+            l.includes("/router")
+          )
+            return "services";
+          // Python middleware/handler layer
+          if (
+            l.includes("/middleware") ||
+            l.includes("/handler") ||
+            l.includes("/signal")
+          )
+            return "services";
+          // Utility/Helper layer
+          if (
+            l.includes("/util") ||
+            l.includes("/helper") ||
+            l.includes("/lib/") ||
+            l.includes("/common/")
+          )
+            return "utils";
+          // Data/Model layer
+          if (
+            l.includes("/data") ||
+            l.includes("/model") ||
+            l.includes("/store") ||
+            l.includes("/schema") ||
+            l.includes("/serializer")
+          )
+            return "data";
+          // Python-specific data layers
+          if (l.includes("/migration")) return "data";
+          if (l.includes("/fixtures/")) return "data";
+          // Python-specific data layers
+          if (
+            l.includes("/task") ||
+            l.includes("/worker") ||
+            l.includes("/celery") ||
+            l.includes("/job")
+          )
+            return "services";
+          // Config layer
+          if (
+            l.includes("/config") ||
+            l.includes("/settings") ||
+            l.match(/settings\.py$/)
+          )
+            return "config";
+          // VBA-specific layer detection
+          if (l.includes("/modules/") || l.includes("/bas/")) return "modules";
+          if (l.includes("/forms/") || l.includes("/userforms/")) return "ui";
+          if (l.includes("/classes/")) return "data";
+          if (l.includes("/standard/")) return "utils";
+          return "utils";
+        },
+        detectPatterns: function (files) {
+          var patterns = [];
+          var singletons = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.includes("getInstance") ||
+                f.content.match(/let\s+instance\s*=/) ||
+                f.content.match(/private\s+static\s+instance/))
+            );
+          });
+          if (singletons.length)
+            patterns.push({
+              name: "Singleton",
+              icon: "lock",
+              desc: "Ensures a class has only one instance. Common for configuration, logging, or connection pools.",
+              severity: "info",
+              files: singletons.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { instances: singletons.length },
+            });
+          var factories = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.name.toLowerCase().includes("factory") ||
+                f.content.match(/create[A-Z]\w*\s*\(/) ||
+                f.content.includes("return new"))
+            );
+          });
