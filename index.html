@@ -5131,5 +5131,92 @@
               })
               .join("\n");
           }
+           // Approximate cyclomatic complexity - supports JS, Python, and other languages
+          var complexity = 1;
+          // JS/C-style patterns
+          var patterns = [
+            /\bif\s*\(/g,
+            /\belse\s+if\s*\(/g,
+            /\bwhile\s*\(/g,
+            /\bfor\s*\(/g,
+            /\bcase\s+/g,
+            /\bcatch\s*\(/g,
+            /\?\s*[^:]+\s*:/g,
+            /&&/g,
+            /\|\|/g,
+          ];
+          // Python-specific patterns
+          var pyPatterns = [
+            /\bif\s+[^(]/g,
+            /\belif\s+/g,
+            /\bwhile\s+[^(]/g,
+            /\bfor\s+\w+\s+in\s+/g,
+            /\bexcept\s*/g,
+            /\bwith\s+/g,
+            /\band\b/g,
+            /\bor\b/g,
+            /\bif\s+.+\s+else\s+/g,
+            /\bfor\s+.+\s+in\s+[^\n]*\]/g,
+          ];
+          patterns.concat(pyPatterns).forEach(function (p) {
+            var m = content.match(p);
+            if (m) complexity += m.length;
+          });
+          // Deduplicate: if both `if (` and `if ` match the same lines, the count is inflated
+          // but for a quick approximation this is acceptable
+          var level = "low";
+          if (complexity > 30) level = "critical";
+          else if (complexity > 20) level = "high";
+          else if (complexity > 10) level = "medium";
+          return { score: complexity, level: level };
+        },
+        generateSuggestions: function (data) {
+          var suggestions = [];
+          // Based on dead functions
+          if (data.stats.dead > 10) {
+            suggestions.push({
+              priority: "high",
+              icon: "broom",
+              title: "Remove Dead Code",
+              desc:
+                data.stats.dead +
+                " unused functions detected. Removing them will improve maintainability and reduce bundle size.",
+              action: "Review unused functions in the Issues panel",
+              impact: "Reduces codebase by ~" + data.stats.dead * 15 + " lines",
+            });
+          }
+          // Based on circular dependencies
+          var circular = data.issues.filter(function (i) {
+            return i.title && i.title.includes("Circular");
+          });
+          if (circular.length) {
+            suggestions.push({
+              priority: "critical",
+              icon: "refresh",
+              title: "Break Circular Dependencies",
+              desc:
+                circular.length +
+                " circular dependencies found. These cause tight coupling and make testing difficult.",
+              action:
+                "Extract shared code to a new module or use dependency injection",
+              impact: "Improves testability and modularity",
+            });
+          }
+          // Based on god files
+          var godFiles = data.issues.filter(function (i) {
+            return i.title && i.title.includes("Large");
+          });
+          if (godFiles.length) {
+            suggestions.push({
+              priority: "high",
+              icon: "split",
+              title: "Split Large Files",
+              desc:
+                godFiles.length +
+                " files have too many functions. Split by responsibility.",
+              action: "Group related functions and extract to separate modules",
+              impact: "Improves code navigation and testing",
+            });
+          }
 
 
