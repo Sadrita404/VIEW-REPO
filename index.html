@@ -5549,3 +5549,147 @@
                       : "",
                 });
               }
+              // Python-specific security checks
+            var isPyFile = f.name.endsWith(".py") || f.name.endsWith(".pyw");
+            if (isPyFile && scanContent) {
+              // eval() and exec() - arbitrary code execution
+              if (scanContent.match(/\beval\s*\(/)) {
+                var evalLine = lines.findIndex(function (l) {
+                  return l.match(/\beval\s*\(/);
+                });
+                issues.push({
+                  severity: "high",
+                  title: "Python eval()",
+                  file: f.name,
+                  path: f.path,
+                  line: evalLine >= 0 ? evalLine + 1 : undefined,
+                  desc: "eval() executes arbitrary Python code. Use ast.literal_eval() for safe parsing.",
+                  code:
+                    evalLine >= 0
+                      ? lines[evalLine].trim().substring(0, 80)
+                      : "",
+                });
+              }
+              if (scanContent.match(/\bexec\s*\(/)) {
+                var execLine = lines.findIndex(function (l) {
+                  return l.match(/\bexec\s*\(/);
+                });
+                issues.push({
+                  severity: "high",
+                  title: "Python exec()",
+                  file: f.name,
+                  path: f.path,
+                  line: execLine >= 0 ? execLine + 1 : undefined,
+                  desc: "exec() executes arbitrary Python code. This is almost always a security risk.",
+                  code:
+                    execLine >= 0
+                      ? lines[execLine].trim().substring(0, 80)
+                      : "",
+                });
+              }
+              // pickle - deserialization attacks
+              if (
+                scanContent.match(/\bpickle\.load/) ||
+                scanContent.match(/\bunpickle/)
+              ) {
+                issues.push({
+                  severity: "high",
+                  title: "Pickle Deserialization",
+                  file: f.name,
+                  path: f.path,
+                  desc: "pickle.load() can execute arbitrary code from untrusted data. Use JSON or safe alternatives.",
+                  code: "",
+                });
+              }
+              // subprocess with shell=True
+              if (scanContent.match(/subprocess\.\w+\([^)]*shell\s*=\s*True/)) {
+                issues.push({
+                  severity: "high",
+                  title: "Shell Injection Risk",
+                  file: f.name,
+                  path: f.path,
+                  desc: "subprocess with shell=True is vulnerable to command injection. Use shell=False with a list of args.",
+                  code: "",
+                });
+              }
+              // os.system / os.popen - command injection
+              if (
+                scanContent.match(/\bos\.system\s*\(/) ||
+                scanContent.match(/\bos\.popen\s*\(/)
+              ) {
+                var osLine = lines.findIndex(function (l) {
+                  return l.match(/\bos\.(system|popen)\s*\(/);
+                });
+                issues.push({
+                  severity: "high",
+                  title: "OS Command Execution",
+                  file: f.name,
+                  path: f.path,
+                  line: osLine >= 0 ? osLine + 1 : undefined,
+                  desc: "os.system()/os.popen() are vulnerable to command injection. Use subprocess with shell=False.",
+                  code:
+                    osLine >= 0 ? lines[osLine].trim().substring(0, 80) : "",
+                });
+              }
+              // __import__ - dynamic imports
+              if (scanContent.match(/__import__\s*\(/)) {
+                issues.push({
+                  severity: "medium",
+                  title: "Dynamic Import",
+                  file: f.name,
+                  path: f.path,
+                  desc: "__import__() with user input can load arbitrary modules. Validate module names against an allowlist.",
+                  code: "",
+                });
+              }
+              // Bare except clauses
+              var bareExcepts = (scanContent.match(/\bexcept\s*:/g) || [])
+                .length;
+              if (bareExcepts > 2) {
+                issues.push({
+                  severity: "medium",
+                  title: "Bare Except Clauses",
+                  file: f.name,
+                  path: f.path,
+                  desc:
+                    bareExcepts +
+                    " bare except: clauses found. These catch all exceptions including SystemExit and KeyboardInterrupt.",
+                  code: "",
+                });
+              }
+              // assert in non-test files
+              if (!f.name.includes("test") && !f.path.includes("test")) {
+                var assertCount = (scanContent.match(/\bassert\s+/g) || [])
+                  .length;
+                if (assertCount > 5) {
+                  issues.push({
+                    severity: "low",
+                    title: "Assert in Production",
+                    file: f.name,
+                    path: f.path,
+                    desc:
+                      assertCount +
+                      " assert statements found. Assertions are stripped with python -O. Use proper validation.",
+                    code: "",
+                  });
+                }
+              }
+              // Hardcoded DEBUG = True
+              if (scanContent.match(/\bDEBUG\s*=\s*True\b/)) {
+                issues.push({
+                  severity: "medium",
+                  title: "Debug Mode Enabled",
+                  file: f.name,
+                  path: f.path,
+                  desc: "DEBUG = True found. Ensure this is disabled in production.",
+                  code: "",
+                });
+              }
+            }
+          });
+          return issues.sort(function (a, b) {
+            var sev = { high: 0, medium: 1, low: 2 };
+            return sev[a.severity] - sev[b.severity];
+          });
+        },
+        
