@@ -4337,3 +4337,97 @@
                 f.content.includes("return new"))
             );
           });
+
+          if (factories.length)
+            patterns.push({
+              name: "Factory",
+              icon: "factory",
+              desc: "Creates objects without specifying exact class. Enables loose coupling and extensibility.",
+              severity: "info",
+              files: factories.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { factories: factories.length },
+            });
+          var observers = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.includes("subscribe") ||
+                f.content.includes("addEventListener") ||
+                f.content.includes(".on(") ||
+                f.content.includes("emit("))
+            );
+          });
+          if (observers.length)
+            patterns.push({
+              name: "Observer/Event",
+              icon: "eye",
+              desc: "Defines a subscription mechanism for event-driven architecture. Great for decoupling.",
+              severity: "info",
+              files: observers.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { emitters: observers.length },
+            });
+          var hooks = files.filter(function (f) {
+            return (
+              f.content &&
+              f.content.match(/export\s+(?:const|function)\s+use[A-Z]/)
+            );
+          });
+          if (hooks.length)
+            patterns.push({
+              name: "Custom Hooks",
+              icon: "hook",
+              desc: "React hooks for reusable stateful logic. Promotes code reuse and separation of concerns.",
+              severity: "info",
+              files: hooks.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { hooks: hooks.length },
+            });
+          var hocs = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.match(/with[A-Z]\w*\s*=\s*\(/) ||
+                f.content.match(/export\s+default\s+connect/))
+            );
+          });
+          if (hocs.length)
+            patterns.push({
+              name: "Higher-Order Component",
+              icon: "spark",
+              desc: "Functions that take a component and return an enhanced component.",
+              severity: "info",
+              files: hocs.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { hocs: hocs.length },
+            });
+          var providers = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.includes("createContext") ||
+                f.content.includes("Provider") ||
+                f.content.includes("useContext"))
+            );
+          });
+          if (providers.length)
+            patterns.push({
+              name: "Context Provider",
+              icon: "globe",
+              desc: "React Context for global state. Alternative to prop drilling.",
+              severity: "info",
+              files: providers.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { contexts: providers.length },
+            });
+          // VBA-specific patterns
+          var vbaUserForms = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.match(/Attribute\s+VB_Name\s*=\s*["']UserForm/i) ||
+                f.name.match(/UserForm/i))
+            );
+          });
