@@ -4431,3 +4431,158 @@
                 f.name.match(/UserForm/i))
             );
           });
+
+          if (vbaUserForms.length)
+            patterns.push({
+              name: "UserForms",
+              icon: "layout",
+              desc: "VBA UserForms for UI components. Common in Excel/Access automation.",
+              severity: "info",
+              files: vbaUserForms.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { forms: vbaUserForms.length },
+            });
+          var vbaModules = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.match(/Attribute\s+VB_Name\s*=\s*["']Module/i) ||
+                f.name.match(/Module/i))
+            );
+          });
+          if (vbaModules.length)
+            patterns.push({
+              name: "Modules",
+              icon: "box",
+              desc: "VBA Modules for reusable code and business logic.",
+              severity: "info",
+              files: vbaModules.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { modules: vbaModules.length },
+            });
+          var vbaClasses = files.filter(function (f) {
+            return (
+              f.content &&
+              (f.content.match(/Attribute\s+VB_Name\s*=\s*["']Class/i) ||
+                f.name.match(/Class/i))
+            );
+          });
+          if (vbaClasses.length)
+            patterns.push({
+              name: "Class Modules",
+              icon: "building",
+              desc: "VBA Class Modules for object-oriented programming patterns.",
+              severity: "info",
+              files: vbaClasses.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { classes: vbaClasses.length },
+            });
+          // Python-specific patterns
+          var decoratorFiles = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              f.content.match(/@\w+\s*(?:\(.*\))?\s*\n\s*(?:def|class)/)
+            );
+          });
+          var pyDecorators = decoratorFiles.filter(function (f) {
+            return f.content.match(
+              /@(?:app\.route|router\.|blueprint\.|get|post|put|delete|patch)\s*\(/
+            );
+          });
+          if (pyDecorators.length)
+            patterns.push({
+              name: "Route Decorators",
+              icon: "route",
+              desc: "Flask/FastAPI/Django route decorators for URL routing. Common in Python web frameworks.",
+              severity: "info",
+              files: pyDecorators.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { routes: pyDecorators.length },
+            });
+          var dataclasses = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              f.content.match(/@dataclass/)
+            );
+          });
+          if (dataclasses.length)
+            patterns.push({
+              name: "Dataclasses",
+              icon: "database",
+              desc: "Python dataclasses for structured data. Reduces boilerplate for data-holding classes.",
+              severity: "info",
+              files: dataclasses.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { dataclasses: dataclasses.length },
+            });
+          var abcFiles = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              (f.content.match(/\bABC\b/) ||
+                f.content.match(/@abstractmethod/) ||
+                f.content.match(/ABCMeta/))
+            );
+          });
+          if (abcFiles.length)
+            patterns.push({
+              name: "Abstract Base Classes",
+              icon: "layers",
+              desc: "Python ABCs enforce interface contracts. Ensures subclasses implement required methods.",
+              severity: "info",
+              files: abcFiles.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { abcs: abcFiles.length },
+            });
+          var ctxManagers = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              (f.content.match(/@contextmanager/) ||
+                f.content.match(/def\s+__enter__/))
+            );
+          });
+          if (ctxManagers.length)
+            patterns.push({
+              name: "Context Managers",
+              icon: "refresh",
+              desc: "Python context managers for resource management (with statement). Ensures proper cleanup.",
+              severity: "info",
+              files: ctxManagers.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { managers: ctxManagers.length },
+            });
+          var pyMixins = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              f.content.match(/class\s+\w*Mixin\w*\s*[\(:]?/)
+            );
+          });
+          if (pyMixins.length)
+            patterns.push({
+              name: "Mixins",
+              icon: "puzzle",
+              desc: "Python mixins for reusable behavior through multiple inheritance.",
+              severity: "info",
+              files: pyMixins.map(function (f) {
+                return { name: f.name, path: f.path };
+              }),
+              metrics: { mixins: pyMixins.length },
+            });
+          var pySignals = files.filter(function (f) {
+            return (
+              f.content &&
+              f.name.endsWith(".py") &&
+              (f.content.match(/Signal\s*\(/) ||
+                f.content.match(/@receiver\s*\(/) ||
+                f.content.match(/\.connect\s*\(/))
+            );
