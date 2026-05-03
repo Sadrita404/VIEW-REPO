@@ -3728,3 +3728,89 @@
           var cfg = Parser.getTreeSitterConfig(filename);
           return cfg ? Parser._tsParsers[cfg.grammar] || null : null;
         },
+        getParserProvenance: function (filename) {
+          var lower = (filename || "").toLowerCase();
+          var cfg = Parser.getTreeSitterConfig(filename);
+          if (cfg && Parser._tsParsers[cfg.grammar])
+            return cfg.coverage === "calls"
+              ? "tree-sitter:" + cfg.grammar + "-calls"
+              : "tree-sitter:" + cfg.grammar;
+          if (
+            [
+              ".js",
+              ".jsx",
+              ".ts",
+              ".tsx",
+              ".mjs",
+              ".cjs",
+              ".vue",
+              ".svelte",
+            ].some(function (ext) {
+              return lower.endsWith(ext);
+            }) &&
+            typeof acorn !== "undefined"
+          )
+            return "acorn-babel";
+          if (Parser.isMarkdown && Parser.isMarkdown(filename))
+            return "markdown-link-parser";
+          if (Parser.isCode(filename)) return "heuristic-regex";
+          return "text";
+        },
+        codeExts: [
+          ".js",
+          ".jsx",
+          ".ts",
+          ".tsx",
+          ".mjs",
+          ".cjs",
+          ".py",
+          ".pyw",
+          ".pyi",
+          ".java",
+          ".go",
+          ".rb",
+          ".php",
+          ".rs",
+          ".c",
+          ".cpp",
+          ".cc",
+          ".h",
+          ".hpp",
+          ".cs",
+          ".swift",
+          ".kt",
+          ".kts",
+          ".scala",
+          ".clj",
+          ".ex",
+          ".exs",
+          ".erl",
+          ".hs",
+          ".lua",
+          ".r",
+          ".R",
+          ".jl",
+          ".dart",
+          ".elm",
+          ".fs",
+          ".fsx",
+          ".ml",
+          ".pl",
+          ".pm",
+          ".sh",
+          ".bash",
+          ".zsh",
+          ".fish",
+          ".ps1",
+          ".psm1",
+          ".groovy",
+          ".gradle",
+          ".vba",
+          ".bas",
+          ".cls",
+          ".xlsm",
+          ".xlam",
+          ".xlsb",
+          ".xla",
+          ".xlw",
+        ],
