@@ -5904,4 +5904,173 @@
                     });
                   }
                 }
-                
+
+                // Property with method shorthand: { foo() {} }
+                if (node.type === "Property" && node.method && node.key) {
+                  var name = node.key.name || node.key.value;
+                  if (name) {
+                    var line =
+                      (node.loc ? node.loc.start.line : 1) + scriptOffset;
+                    var endLine =
+                      (node.loc ? node.loc.end.line : line) + scriptOffset;
+                    addFn({
+                      name: name,
+                      file: filename,
+                      line: line,
+                      code: extractCode(line, endLine),
+                      isTopLevel: false,
+                      isExported: false,
+                      type: "method",
+                    });
+                  }
+                }
+
+                // Property with function value: { foo: function() {} } or { foo: () => {} }
+                if (
+                  node.type === "Property" &&
+                  !node.method &&
+                  node.value &&
+                  node.key
+                ) {
+                  var val = node.value;
+                  if (
+                    val.type === "FunctionExpression" ||
+                    val.type === "ArrowFunctionExpression"
+                  ) {
+                    var name = node.key.name || node.key.value;
+                    if (name) {
+                      var line =
+                        (node.loc ? node.loc.start.line : 1) + scriptOffset;
+                      var endLine =
+                        (node.loc ? node.loc.end.line : line) + scriptOffset;
+                      addFn({
+                        name: name,
+                        file: filename,
+                        line: line,
+                        code: extractCode(line, endLine),
+                        isTopLevel: false,
+                        isExported: false,
+                        type: "method",
+                      });
+                    }
+                  }
+                }
+
+                // Handle exports
+                var nextIsExport = false;
+                if (
+                  node.type === "ExportNamedDeclaration" ||
+                  node.type === "ExportDefaultDeclaration"
+                ) {
+                  nextIsExport = true;
+                  if (node.declaration) {
+                    walk(node.declaration, scope, true);
+                    return;
+                  }
+                }
+
+                // Recurse - increase scope for function bodies
+                var newScope = scope;
+                if (
+                  node.type === "FunctionDeclaration" ||
+                  node.type === "FunctionExpression" ||
+                  node.type === "ArrowFunctionExpression" ||
+                  node.type === "ClassDeclaration" ||
+                  node.type === "ClassExpression"
+                ) {
+                  newScope = scope + 1;
+                }
+
+                for (var key in node) {
+                  if (
+                    key === "loc" ||
+                    key === "range" ||
+                    key === "start" ||
+                    key === "end" ||
+                    key === "raw"
+                  )
+                    continue;
+                  var child = node[key];
+                  if (Array.isArray(child)) {
+                    child.forEach(function (c) {
+                      walk(c, newScope, nextIsExport);
+                    });
+                  } else if (child && typeof child === "object" && child.type) {
+                    walk(child, newScope, nextIsExport);
+                  }
+                }
+              }
+
+              walk(ast, 0, false);
+            } catch (e) {
+              // AST parsing failed
+              parseSuccess = false;
+            }
+
+            // If AST parsing failed, use comprehensive regex fallback
+            if (!parseSuccess) {
+              Parser.extractWithRegex(
+                scriptContent,
+                filename,
+                scriptOffset,
+                addFn,
+                extractCode
+              );
+            }
+          } else if (isPython) {
+            // Python: extract classes, functions, async functions, decorators, and methods
+            var currentClass = null;
+            var classIndent = -1;
+            var decorators = [];
+            lines.forEach(function (line, idx) {
+              var trimmed = line.trimStart();
+              var indent = (line.match(/^(\s*)/) || ["", ""])[1].length;
+
+              // Track decorators
+              if (trimmed.match(/^@\w/)) {
+                decorators.push(trimmed);
+                return;
+              }
+
+              // Detect class definitions
+              var classMatch = line.match(
+                /^(\s*)class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[\(:]?/
+              );
+              if (classMatch) {
+                var cIndent = classMatch[1].length;
+                var className = classMatch[2];
+                var cEndLine = idx + 1;
+                for (var i = idx + 1; i < lines.length; i++) {
+                  var nl = lines[i];
+                  if (nl.trim() === "" || nl.match(/^\s*#/)) continue;
+                  var ni = (nl.match(/^(\s*)/) || ["", ""])[1].length;
+                  if (ni <= cIndent && nl.trim() !== "") {
+                    cEndLine = i;
+                    break;
+                  }
+                  cEndLine = i + 1;
+                }
+                var hasDecorator = decorators.length > 0;
+                var isDataclass = decorators.some(function (d) {
+                  return d.includes("dataclass");
+                });
+                var isABC = line.includes("ABC") || line.includes("ABCMeta");
+                addFn({
+                  name: className,
+                  file: filename,
+                  line: idx + 1,
+                  code: extractCode(idx + 1, Math.min(idx + 20, cEndLine)),
+                  isTopLevel: cIndent === 0,
+                  isExported: cIndent === 0,
+                  type: isDataclass
+                    ? "dataclass"
+                    : isABC
+                    ? "abstract_class"
+                    : "class",
+                  decorators: hasDecorator ? decorators.slice() : undefined,
+                });
+                currentClass = className;
+                classIndent = cIndent;
+                decorators = [];
+                return;
+              }
