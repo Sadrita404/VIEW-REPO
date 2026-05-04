@@ -8450,3 +8450,113 @@
         dataObj.suggestions = Parser.generateSuggestions(dataObj);
         return dataObj;
       }
+        // ---------------------------------------------------------------------------
+      // Inline Worker Runtime
+      // ---------------------------------------------------------------------------
+
+      var analysisWorkerSourcePromise = null;
+
+      function createAnalysisWorkerSource() {
+        if (analysisWorkerSourcePromise) return analysisWorkerSourcePromise;
+        analysisWorkerSourcePromise = fetch(window.location.href, {
+          cache: "no-store",
+        })
+          .then(function (response) {
+            if (!response.ok) throw new Error("Unable to load analyzer source");
+            return response.text();
+          })
+          .then(function (html) {
+            // Build markers via concatenation so they don't match themselves in the slice.
+            var startMarker = "// ===== VIEW REPO_" + "ANALYZER_START =====";
+            var endMarker = "// ===== VIEW REPO_" + "ANALYZER_END =====";
+            var parserStart = html.indexOf(startMarker);
+            var parserEnd = html.indexOf(endMarker, parserStart);
+            if (parserStart < 0 || parserEnd < 0)
+              throw new Error("Analyzer source markers missing");
+            var analyzerSource = html.slice(parserStart, parserEnd);
+            return [
+              "self.window=self;",
+              'function getSecurityScanContent(file){return file&&file.content?file.content:"";}',
+              "function isSanitizedPreviewRenderer(){return false;}",
+              "function yieldToBrowser(){return Promise.resolve();}",
+              'try{importScripts("https://cdnjs.cloudflare.com/ajax/libs/acorn/8.11.3/acorn.min.js");}catch(e){}',
+              'try{importScripts("https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js");}catch(e){}',
+              'try{importScripts("https://cdn.jsdelivr.net/npm/web-tree-sitter@0.20.8/tree-sitter.js");}catch(e){}',
+              analyzerSource,
+              "self.onmessage=async function(event){",
+              "  var payload=event.data||{};",
+              "  try{",
+              "    var data=await buildAnalysisData({",
+              "      analyzed:payload.analyzed||[],",
+              "      allFns:payload.allFns||[],",
+              "      excludePatterns:payload.excludePatterns||[],",
+              '      progress:function(message){self.postMessage({type:"progress",message:message});},',
+              "      yieldFn:function(){return Promise.resolve();}",
+              "    });",
+              '    self.postMessage({type:"done",data:data});',
+              "  }catch(error){",
+              '    self.postMessage({type:"error",message:error&&error.message?error.message:String(error)});',
+              "  }",
+              "};",
+            ].join("\n");
+          });
+        return analysisWorkerSourcePromise;
+      }
+
+      function runAnalysisData(options) {
+        if (
+          typeof Worker === "undefined" ||
+          typeof Blob === "undefined" ||
+          typeof URL === "undefined"
+        ) {
+          return buildAnalysisData(options);
+        }
+        return createAnalysisWorkerSource()
+          .then(function (workerSource) {
+            return new Promise(function (resolve, reject) {
+              var workerUrl = URL.createObjectURL(
+                new Blob([workerSource], { type: "text/javascript" })
+              );
+              var worker = new Worker(workerUrl);
+              var settled = false;
+              function cleanup() {
+                worker.terminate();
+                URL.revokeObjectURL(workerUrl);
+              }
+              worker.onmessage = function (event) {
+                var message = event.data || {};
+                if (message.type === "progress") {
+                  if (typeof options.progress === "function")
+                    options.progress(message.message);
+                  return;
+                }
+                settled = true;
+                cleanup();
+                if (message.type === "done") resolve(message.data);
+                else
+                  reject(
+                    new Error(message.message || "Worker analysis failed")
+                  );
+              };
+              worker.onerror = function (error) {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(
+                  error && error.message
+                    ? new Error(error.message)
+                    : new Error("Worker analysis failed")
+                );
+              };
+              worker.postMessage({
+                analyzed: options.analyzed || [],
+                allFns: options.allFns || [],
+                excludePatterns: options.excludePatterns || [],
+              });
+            });
+          })
+          .catch(function () {
+            return buildAnalysisData(options);
+          });
+      }
+      // ===== VIEW REPO_ANALYZER_END =====
