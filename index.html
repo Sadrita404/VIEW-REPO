@@ -12518,3 +12518,480 @@ var dataObj = await runAnalysisData({
                       .strength(0.95)
                   );
               }
+               // Adaptive simulation parameters based on graph size
+              var isLargeGraph = nodes.length > 300;
+              var alphaDecay = isLargeGraph ? 0.08 : 0.05;
+              var velDecay = isLargeGraph ? 0.7 : 0.6;
+              sim.velocityDecay(velDecay).alphaDecay(alphaDecay);
+              simRef.current = sim;
+              var link = linkLayer
+                .selectAll("path")
+                .data(links)
+                .join("path")
+                .attr("fill", "none")
+                .attr("stroke", theme === "light" ? "#ccc" : "#333")
+                .attr("stroke-width", function (d) {
+                  return Math.max(1, Math.min(2, Math.sqrt(d.count) * 0.3));
+                })
+                .attr("stroke-opacity", 0.4)
+                .attr("marker-end", "url(#arr)");
+              linksRef.current = link;
+              var node = nodeLayer
+                .selectAll("g")
+                .data(nodes)
+                .join("g")
+                .style("cursor", "pointer");
+              nodesRef.current = node;
+              node.call(
+                d3
+                  .drag()
+                  .on("start", function (e, d) {
+                    if (!e.active) sim.alphaTarget(0.1).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                  })
+                  .on("drag", function (e, d) {
+                    d.fx = e.x;
+                    d.fy = e.y;
+                  })
+                  .on("end", function (e, d) {
+                    if (!e.active) sim.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                  })
+              );
+              node.on("click", function (e, d) {
+                e.stopPropagation();
+                if (selectFileRef.current) selectFileRef.current(d.id);
+              });
+              node
+                .on("mouseenter", function (e, d) {
+                  var r = svgRef.current.getBoundingClientRect();
+                  setTooltip({
+                    x: e.clientX - r.left + 10,
+                    y: e.clientY - r.top,
+                    title: d.name,
+                    content:
+                      d.fnCount +
+                      " functions\n" +
+                      d.layer +
+                      " layer\n" +
+                      d.churn +
+                      " recent commits",
+                  });
+                })
+                .on("mouseleave", function () {
+                  setTooltip(null);
+                });
+              svg.on("click", function (e) {
+                if (e.target === svgRef.current) {
+                  setSelected(null);
+                  setBlastRadius(null);
+                  link
+                    .attr("stroke", theme === "light" ? "#ccc" : "#333")
+                    .attr("stroke-opacity", 0.4);
+                  node.selectAll(".nc").attr("opacity", 1).attr("fill", getC);
+                }
+              });
+              node
+                .append("circle")
+                .attr("class", "nc")
+                .attr("r", getR)
+                .attr("fill", getC)
+                .attr("stroke", function (d) {
+                  var c = d3.color(getC(d));
+                  return c ? c.brighter(0.3) : "#fff";
+                })
+                .attr("stroke-width", 1.5);
+              // Hide labels for large graphs to reduce DOM overhead
+              if (!isLargeGraph || graphConfig.showLabels) {
+                node
+                  .append("text")
+                  .attr("text-anchor", "middle")
+                  .attr("dy", 0)
+                  .attr("fill", theme === "light" ? "#333" : "#eee")
+                  .attr("font-size", function (d) {
+                    return Math.max(6, Math.min(10, getR(d) * 0.6)) + "px";
+                  })
+                  .attr("font-family", "JetBrains Mono")
+                  .attr("font-weight", "500")
+                  .attr("pointer-events", "none")
+                  .text(function (d) {
+                    var n = d.name.replace(/\.[^.]+$/, "");
+                    var maxLen = Math.max(4, Math.floor(getR(d) / 2));
+                    return n.length > maxLen + 1 ? n.slice(0, maxLen) + "…" : n;
+                  });
+              }
+              // Pre-index nodes by folder for faster hull computation
+              var nodesByFolder = {};
+              folders.forEach(function (f) {
+                nodesByFolder[f] = nodes.filter(function (n) {
+                  return n.folder === f;
+                });
+              });
+              function updateHulls() {
+                hullLayer.selectAll("*").remove();
+                folders.forEach(function (f) {
+                  var fn = nodesByFolder[f];
+                  if (!fn || fn.length < 1) return;
+                  var pad = 30,
+                    pts = [];
+                  fn.forEach(function (n) {
+                    if (n.x && n.y)
+                      pts.push(
+                        [n.x - pad, n.y - pad],
+                        [n.x + pad, n.y - pad],
+                        [n.x - pad, n.y + pad],
+                        [n.x + pad, n.y + pad]
+                      );
+                  });
+                  if (pts.length < 3) return;
+                  var hull = d3.polygonHull(pts);
+                  if (hull) {
+                    var color =
+                      colorMap[f] || COLORS[folders.indexOf(f) % COLORS.length];
+                    hullLayer
+                      .append("path")
+                      .attr("d", "M" + hull.join("L") + "Z")
+                      .attr("fill", color)
+                      .attr("fill-opacity", 0.04)
+                      .attr("stroke", color)
+                      .attr("stroke-width", 2)
+                      .attr("stroke-opacity", 0.25)
+                      .attr("rx", 8);
+                    var cx = d3.mean(fn, function (n) {
+                        return n.x;
+                      }),
+                      cy =
+                        d3.min(fn, function (n) {
+                          return n.y;
+                        }) -
+                        pad -
+                        8;
+                    hullLayer
+                      .append("text")
+                      .attr("x", cx)
+                      .attr("y", cy)
+                      .attr("text-anchor", "middle")
+                      .attr("fill", color)
+                      .attr("font-size", "10px")
+                      .attr("font-family", "JetBrains Mono")
+                      .attr("font-weight", "600")
+                      .attr("opacity", 0.7)
+                      .text(f || "root");
+                  }
+                });
+              }
+              // Throttle hull updates for large graphs (every N ticks instead of every tick)
+              var hullInterval = isLargeGraph ? 5 : 1;
+              var tickCount = 0;
+              sim.on("tick", function () {
+                if (graphConfig.curvedLinks) {
+                  link.attr("d", function (d) {
+                    var dx = d.target.x - d.source.x,
+                      dy = d.target.y - d.source.y,
+                      dr = Math.sqrt(dx * dx + dy * dy);
+                    return (
+                      "M" +
+                      d.source.x +
+                      "," +
+                      d.source.y +
+                      "A" +
+                      dr +
+                      "," +
+                      dr +
+                      " 0 0,1 " +
+                      d.target.x +
+                      "," +
+                      d.target.y
+                    );
+                  });
+                } else {
+                  link.attr("d", function (d) {
+                    return (
+                      "M" +
+                      d.source.x +
+                      "," +
+                      d.source.y +
+                      "L" +
+                      d.target.x +
+                      "," +
+                      d.target.y
+                    );
+                  });
+                }
+                node.attr("transform", function (d) {
+                  return "translate(" + d.x + "," + d.y + ")";
+                });
+                tickCount++;
+                if (tickCount % hullInterval === 0) updateHulls();
+              });
+              node
+                .selectAll("text")
+                .attr("opacity", graphConfig.showLabels ? 1 : 0);
+            } catch (e) {
+              console.error("Force graph error:", e);
+              svg.selectAll("*").remove();
+              svg
+                .append("text")
+                .attr("x", 20)
+                .attr("y", 30)
+                .attr("fill", "var(--t3)")
+                .text("Graph rendering error: " + e.message);
+            }
+            return function () {
+              if (simRef.current) simRef.current.stop();
+            };
+          },
+          [data, colorMap, colorMode, theme, folderFilter, graphConfig]
+        );
+
+        // Treemap visualization - Interactive with zoom, pan, selection, blast radius
+        useEffect(
+          function () {
+            if (
+              !data ||
+              !treemapRef.current ||
+              graphConfig.vizType !== "treemap"
+            )
+              return;
+            var container = d3.select(treemapRef.current);
+            container.selectAll("*").remove();
+            var w = treemapRef.current.clientWidth || 800,
+              h = treemapRef.current.clientHeight || 600;
+            var svg = container
+              .append("svg")
+              .attr("width", w)
+              .attr("height", h)
+              .style("cursor", "grab");
+            var g = svg.append("g");
+            var zoom = d3
+              .zoom()
+              .scaleExtent([0.3, 4])
+              .on("zoom", function (e) {
+                g.attr("transform", e.transform);
+                svg.style("cursor", e.transform.k > 1 ? "grab" : "default");
+              });
+            svg.call(zoom);
+            var hier = { name: "root", children: [] };
+            var folderMap = {};
+            var filteredFiles = folderFilter
+              ? data.files.filter(function (f) {
+                  return (
+                    f.folder === folderFilter ||
+                    f.folder.startsWith(folderFilter + "/")
+                  );
+                })
+              : data.files;
+            filteredFiles.forEach(function (f) {
+              var folder = f.folder || "root";
+              if (!folderMap[folder])
+                folderMap[folder] = { name: folder, children: [] };
+              folderMap[folder].children.push({
+                name: f.name,
+                value: f.lines || 1,
+                path: f.path,
+                layer: f.layer,
+                fns: f.functions.length,
+                folder: folder,
+              });
+            });
+            hier.children = Object.values(folderMap);
+            var root = d3
+              .hierarchy(hier)
+              .sum(function (d) {
+                return d.value || 0;
+              })
+              .sort(function (a, b) {
+                return b.value - a.value;
+              });
+            d3
+              .treemap()
+              .size([w - 20, h - 20])
+              .padding(3)
+              .round(true)(root);
+            var pathToLeaf = {};
+            root.leaves().forEach(function (leaf) {
+              if (leaf.data.path) pathToLeaf[leaf.data.path] = leaf;
+            });
+            var cells = g
+              .selectAll("g.treemap-cell-g")
+              .data(root.leaves())
+              .join("g")
+              .attr("class", "treemap-cell-g")
+              .attr("transform", function (d) {
+                return "translate(" + d.x0 + "," + d.y0 + ")";
+              });
+            cells
+              .append("rect")
+              .attr("class", "treemap-rect")
+              .attr("width", function (d) {
+                return Math.max(0, d.x1 - d.x0);
+              })
+              .attr("height", function (d) {
+                return Math.max(0, d.y1 - d.y0);
+              })
+              .attr("fill", function (d) {
+                return (
+                  colorMap[d.parent.data.name] ||
+                  COLORS[hier.children.indexOf(d.parent.data) % COLORS.length]
+                );
+              })
+              .attr("opacity", 0.85)
+              .attr("rx", 3)
+              .attr("stroke", "var(--bg0)")
+              .attr("stroke-width", 1)
+              .style("cursor", "pointer");
+            cells
+              .filter(function (d) {
+                return d.x1 - d.x0 > 45 && d.y1 - d.y0 > 22;
+              })
+              .append("text")
+              .attr("class", "treemap-text")
+              .attr("x", 4)
+              .attr("y", 14)
+              .attr("fill", "white")
+              .attr("font-size", "10px")
+              .attr("font-weight", "500")
+              .style("text-shadow", "0 1px 2px rgba(0,0,0,0.5)")
+              .style("pointer-events", "none")
+              .text(function (d) {
+                var n = d.data.name.replace(/\.[^.]+$/, "");
+                var maxLen = Math.floor((d.x1 - d.x0 - 8) / 6);
+                return n.length > maxLen ? n.slice(0, maxLen - 1) + "…" : n;
+              });
+            cells
+              .filter(function (d) {
+                return d.x1 - d.x0 > 60 && d.y1 - d.y0 > 35;
+              })
+              .append("text")
+              .attr("class", "treemap-subtext")
+              .attr("x", 4)
+              .attr("y", 26)
+              .attr("fill", "rgba(255,255,255,0.7)")
+              .attr("font-size", "8px")
+              .style("pointer-events", "none")
+              .text(function (d) {
+                return d.data.value + " lines";
+              });
+            var tooltip = container
+              .append("div")
+              .attr("class", "treemap-tooltip")
+              .style("display", "none")
+              .style("position", "absolute");
+            cells
+              .on("mouseenter", function (e, d) {
+                tooltip
+                  .html(
+                    renderTooltipHtml(d.data.name, [
+                      { label: "Lines", value: d.data.value },
+                      { label: "Functions", value: d.data.fns || 0 },
+                      { label: "Layer", value: d.data.layer || "—" },
+                      { label: "Folder", value: d.data.folder || "root" },
+                    ])
+                  )
+                  .style("display", "block")
+                  .style("left", e.offsetX + 15 + "px")
+                  .style("top", e.offsetY + 15 + "px");
+                d3.select(this)
+                  .select("rect")
+                  .transition()
+                  .duration(150)
+                  .attr("opacity", 1)
+                  .attr("stroke", "var(--acc)")
+                  .attr("stroke-width", 2);
+              })
+              .on("mousemove", function (e) {
+                tooltip
+                  .style("left", e.offsetX + 15 + "px")
+                  .style("top", e.offsetY + 15 + "px");
+              })
+              .on("mouseleave", function (e, d) {
+                tooltip.style("display", "none");
+                var sel = selected ? selected.path : null;
+                var isSelected = d.data.path === sel;
+                var isAffected =
+                  blastRadius && blastRadius.affected.includes(d.data.path);
+                d3.select(this)
+                  .select("rect")
+                  .transition()
+                  .duration(150)
+                  .attr("opacity", isSelected ? 1 : isAffected ? 0.95 : 0.85)
+                  .attr(
+                    "stroke",
+                    isSelected
+                      ? "#ff5f5f"
+                      : isAffected
+                      ? "var(--orange)"
+                      : "var(--bg0)"
+                  )
+                  .attr("stroke-width", isSelected || isAffected ? 2 : 1);
+              })
+              .on("click", function (e, d) {
+                e.stopPropagation();
+                if (d.data.path && selectFileRef.current) {
+                  selectFileRef.current(d.data.path);
+                  setTimeout(function () {
+                    var blast = blastRadius;
+                    cells
+                      .select("rect")
+                      .transition()
+                      .duration(300)
+                      .attr("opacity", function (n) {
+                        return n.data.path === d.data.path
+                          ? 1
+                          : blast && blast.affected.includes(n.data.path)
+                          ? 0.95
+                          : 0.4;
+                      })
+                      .attr("fill", function (n) {
+                        return n.data.path === d.data.path
+                          ? "#ff5f5f"
+                          : blast && blast.affected.includes(n.data.path)
+                          ? "#ff9f43"
+                          : colorMap[n.parent.data.name] || COLORS[0];
+                      })
+                      .attr("stroke", function (n) {
+                        return n.data.path === d.data.path
+                          ? "#ff5f5f"
+                          : blast && blast.affected.includes(n.data.path)
+                          ? "var(--orange)"
+                          : "var(--bg0)";
+                      })
+                      .attr("stroke-width", function (n) {
+                        return n.data.path === d.data.path ||
+                          (blast && blast.affected.includes(n.data.path))
+                          ? 2
+                          : 1;
+                      });
+                  }, 100);
+                }
+              });
+            svg.on("click", function () {
+              setSelected(null);
+              setBlastRadius(null);
+              cells
+                .select("rect")
+                .transition()
+                .duration(300)
+                .attr("opacity", 0.85)
+                .attr("fill", function (d) {
+                  return colorMap[d.parent.data.name] || COLORS[0];
+                })
+                .attr("stroke", "var(--bg0)")
+                .attr("stroke-width", 1);
+            });
+            svg.on("dblclick.zoom", function (e) {
+              e.preventDefault();
+              svg.transition().duration(300).call(zoom.scaleTo, 1);
+            });
+          },
+          [
+            data,
+            graphConfig.vizType,
+            colorMap,
+            folderFilter,
+            selected,
+            blastRadius,
+          ]
+        );
