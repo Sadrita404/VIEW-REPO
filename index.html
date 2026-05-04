@@ -10110,3 +10110,214 @@ function calcHealth(data) {
         if (Parser.isJSON(filename)) return "note";
         return "code";
       }
+function getAccentBlockStyle(borderColor, tint, extra) {
+        return Object.assign(
+          {
+            background:
+              "linear-gradient(180deg, " + tint + " 0%, var(--bg0) 55%)",
+            border: "1px solid " + borderColor,
+            borderRadius: 8,
+          },
+          extra || {}
+        );
+      }
+
+      function buildAppUrl(repo, autoRun) {
+        var url = new URL(window.location.href);
+        url.search = "";
+        if (repo) url.searchParams.set("repo", repo);
+        if (autoRun && repo) url.searchParams.set("run", "1");
+        return url.toString();
+      }
+
+      function getDialogTone(tone) {
+        if (tone === "danger")
+          return {
+            color: "var(--red)",
+            borderColor: "rgba(255,95,95,0.34)",
+            background: "rgba(255,95,95,0.12)",
+          };
+        if (tone === "info")
+          return {
+            color: "var(--blue)",
+            borderColor: "rgba(77,159,255,0.34)",
+            background: "rgba(77,159,255,0.12)",
+          };
+        return {
+          color: "var(--orange)",
+          borderColor: "rgba(255,159,67,0.34)",
+          background: "rgba(255,159,67,0.12)",
+        };
+      }
+
+      // Error boundary to prevent white screen crashes on large codebases
+      class ErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError: false, error: null };
+        }
+        static getDerivedStateFromError(error) {
+          return { hasError: true, error: error };
+        }
+        componentDidCatch(error, info) {
+          console.error("VIEW REPO crashed:", error, info);
+        }
+        render() {
+          if (this.state.hasError) {
+            var self = this;
+            return React.createElement(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100vh",
+                  background: "var(--bg0)",
+                  color: "var(--t0)",
+                  fontFamily: "JetBrains Mono, monospace",
+                  padding: 40,
+                  textAlign: "center",
+                },
+              },
+              React.createElement(Icon, {
+                name: "logo",
+                size: "xxl",
+                className: "empty-icon",
+              }),
+              React.createElement(
+                "h2",
+                { style: { marginBottom: 12, color: "var(--acc)" } },
+                "VIEW REPO ran into an issue"
+              ),
+              React.createElement(
+                "p",
+                {
+                  style: { color: "var(--t2)", marginBottom: 8, maxWidth: 500 },
+                },
+                "The codebase may be too large for your browser's available memory. Try analyzing a subfolder instead, or close other browser tabs to free memory."
+              ),
+              React.createElement(
+                "p",
+                {
+                  style: { color: "var(--t3)", fontSize: 11, marginBottom: 20 },
+                },
+                String(this.state.error)
+              ),
+              React.createElement(
+                "button",
+                {
+                  onClick: function () {
+                    self.setState({ hasError: false, error: null });
+                  },
+                  style: {
+                    padding: "8px 20px",
+                    background: "var(--acc)",
+                    color: "var(--bg0)",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontWeight: 600,
+                  },
+                },
+                "Reload"
+              )
+            );
+          }
+          return this.props.children;
+        }
+      }
+
+      function TreeNode(props) {
+        var node = props.node,
+          selected = props.selected,
+          onSelect = props.onSelect,
+          expanded = props.expanded,
+          toggle = props.toggle,
+          filterFolder = props.filterFolder,
+          activeFilter = props.activeFilter;
+        var isOpen = expanded.has(node.path);
+        var isFiltered = activeFilter === node.path;
+        var children = Object.values(node.children).sort(function (a, b) {
+          return a.name.localeCompare(b.name);
+        });
+        return React.createElement(
+          "div",
+          null,
+          React.createElement(
+            "div",
+            {
+              className: "tree-folder" + (isFiltered ? " filtered" : ""),
+              onClick: function () {
+                if (node.path === "") filterFolder(null);
+                else filterFolder(node.path);
+              },
+            },
+            React.createElement(
+              "span",
+              {
+                className: "tree-toggle" + (isOpen ? " open" : ""),
+                onClick: function (e) {
+                  e.stopPropagation();
+                  toggle(node.path);
+                },
+              },
+              children.length > 0 || node.files.length > 0 ? "▶" : ""
+            ),
+            React.createElement(Icon, {
+              name: isOpen ? "folder-open" : "folder",
+              size: "m",
+              className: "tree-entry-icon",
+            }),
+            React.createElement("span", { className: "tree-name" }, node.name),
+            React.createElement(
+              "span",
+              { className: "tree-count" },
+              countFiles(node)
+            )
+          ),
+          isOpen &&
+            React.createElement(
+              "div",
+              { className: "tree-children" },
+              children.map(function (c) {
+                return React.createElement(TreeNode, {
+                  key: c.path,
+                  node: c,
+                  selected: selected,
+                  onSelect: onSelect,
+                  expanded: expanded,
+                  toggle: toggle,
+                  filterFolder: filterFolder,
+                  activeFilter: activeFilter,
+                });
+              }),
+              node.files.map(function (f) {
+                return React.createElement(
+                  "div",
+                  {
+                    key: f.path,
+                    className:
+                      "tree-file" +
+                      (selected && selected.path === f.path ? " active" : ""),
+                    onClick: function () {
+                      onSelect(f.path);
+                    },
+                  },
+                  React.createElement(Icon, {
+                    name: "file",
+                    size: "s",
+                    className: "tree-entry-icon",
+                  }),
+                  React.createElement(
+                    "span",
+                    { className: "tree-name" },
+                    f.name
+                  )
+                );
+              })
+            )
+        );
+      }
