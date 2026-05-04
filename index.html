@@ -11497,3 +11497,644 @@ function getAccentBlockStyle(borderColor, tint, extra) {
                 });
               }
             }
+var dataObj = await runAnalysisData({
+              analyzed: analyzed,
+              allFns: allFns,
+              excludePatterns: (patterns || []).map(function (x) {
+                return x.raw;
+              }),
+              progress: setProgress,
+              yieldFn: yieldToBrowser,
+            });
+            setData(dataObj);
+            setExpandedPaths(new Set([""]));
+            setRepoInfo({
+              owner: "local",
+              repo: "folder",
+              name: "Local Folder",
+            });
+            setLoading(false);
+          } catch (err) {
+            setError(
+              "Analysis failed: " +
+                (err.message || err) +
+                ". Try a smaller folder or subfolder."
+            );
+            setLoading(false);
+          }
+        }
+
+        async function readZipArchive(zipFile, compiledPatterns) {
+          var patterns = compiledPatterns || activeExcludePatterns;
+          var SOFT_LIMIT = ANALYSIS_LIMITS.localSoft;
+          try {
+            if (!window.JSZip) throw new Error("ZIP support failed to load");
+            setProgress("Loading language parsers...");
+            await Parser.initTreeSitter().catch(function () {
+              return null;
+            });
+            setProgress("Reading ZIP archive...");
+            var zip = await JSZip.loadAsync(zipFile);
+            var rawEntries = Object.keys(zip.files)
+              .sort()
+              .map(function (name) {
+                return zip.files[name];
+              })
+              .filter(function (entry) {
+                return entry && !entry.dir;
+              });
+            var rootPrefix = getArchiveRootPrefix(
+              rawEntries.map(function (entry) {
+                return entry.name;
+              })
+            );
+            var files = [];
+            var entriesByPath = Object.create(null);
+            var fileCount = 0;
+            var dirCache = new Map();
+
+            rawEntries.forEach(function (entry) {
+              var rawPath = normalizeExcludePath(entry.name);
+              if (!rawPath || rawPath.endsWith("/")) return;
+              var entryPath =
+                rootPrefix && rawPath.indexOf(rootPrefix) === 0
+                  ? rawPath.slice(rootPrefix.length)
+                  : rawPath;
+              entryPath = normalizeExcludePath(entryPath);
+              if (
+                !entryPath ||
+                shouldSkipArchivePath(entryPath, patterns, dirCache)
+              )
+                return;
+              var parts = entryPath.split("/").filter(Boolean);
+              var name = parts[parts.length - 1] || "";
+              if (
+                !name ||
+                name === ".DS_Store" ||
+                shouldExcludeFile(entryPath, name, patterns)
+              )
+                return;
+              var folder =
+                parts.length > 1 ? parts.slice(0, -1).join("/") : "root";
+              fileCount++;
+              files.push({
+                path: entryPath,
+                name: name,
+                folder: folder,
+                size:
+                  entry._data && entry._data.uncompressedSize
+                    ? entry._data.uncompressedSize
+                    : 0,
+                isCode: Parser.isCode(name),
+                entry: entry,
+              });
+              entriesByPath[entryPath] = entry;
+            });
+
+            if (fileCount === 0) {
+              setError(
+                patterns && patterns.length
+                  ? "No code files found in the ZIP archive after applying exclude patterns"
+                  : "No code files found in the ZIP archive"
+              );
+              setLoading(false);
+              return;
+            }
+
+            if (fileCount > SOFT_LIMIT) {
+              var proceed = await requestConfirm({
+                tone: "warning",
+                icon: "archive",
+                title: "Analyze " + fileCount + " files?",
+                message:
+                  "This ZIP archive has " +
+                  fileCount +
+                  " analyzable files.\n\n" +
+                  "VIEW REPO will analyze every eligible file. Large archives can take minutes and use significant browser memory.\n\n" +
+                  "Continue with all " +
+                  fileCount +
+                  " files?",
+                confirmLabel: "Analyze all files",
+              });
+              if (!proceed) {
+                setLocalSourceKind(null);
+                zipFileRef.current = null;
+                setLoading(false);
+                return;
+              }
+            }
+
+            zipArchiveRef.current = {
+              zip: zip,
+              entriesByPath: entriesByPath,
+              name: zipFile.name,
+            };
+            zipFileRef.current = zipFile;
+            setLocalDirHandle(null);
+            setLocalSourceKind("zip");
+
+            var max = files.length;
+            var analyzed = [];
+            var allFns = [];
+            for (var i = 0; i < max; i++) {
+              var f = files[i];
+              if (i > 0 && i % 50 === 0) await yieldToBrowser();
+              setProgress("Analyzing " + (i + 1) + "/" + max + ": " + f.name);
+              var isCodeFile = f.isCode !== false && Parser.isCode(f.name);
+              try {
+                var content = await f.entry.async("string");
+                var layer = Parser.detectLayer(f.path);
+                if (isCodeFile) {
+                  var actualIsCode =
+                    !Parser.isScriptContainer(f.path) ||
+                    Parser.hasEmbeddedCode(content, f.path);
+                  var fns = actualIsCode ? Parser.extract(content, f.path) : [];
+                  analyzed.push({
+                    path: f.path,
+                    name: f.name,
+                    folder: f.folder,
+                    content: content,
+                    functions: fns,
+                    lines: content.split("\n").length,
+                    layer: layer,
+                    churn: 0,
+                    isCode: actualIsCode,
+                  });
+                  if (actualIsCode) {
+                    fns.forEach(function (fn) {
+                      allFns.push(
+                        Object.assign({}, fn, {
+                          folder: f.folder,
+                          layer: layer,
+                        })
+                      );
+                    });
+                  }
+                } else {
+                  analyzed.push({
+                    path: f.path,
+                    name: f.name,
+                    folder: f.folder,
+                    content: content || "",
+                    functions: [],
+                    lines: content ? content.split("\n").length : 0,
+                    layer: layer,
+                    churn: 0,
+                    isCode: false,
+                  });
+                }
+              } catch (e) {
+                analyzed.push({
+                  path: f.path,
+                  name: f.name,
+                  folder: f.folder,
+                  content: "",
+                  functions: [],
+                  lines: 0,
+                  layer: Parser.detectLayer(f.path),
+                  churn: 0,
+                  isCode: false,
+                });
+              }
+            }
+
+            var dataObj = await runAnalysisData({
+              analyzed: analyzed,
+              allFns: allFns,
+              excludePatterns: (patterns || []).map(function (x) {
+                return x.raw;
+              }),
+              progress: setProgress,
+              yieldFn: yieldToBrowser,
+            });
+            setData(dataObj);
+            setExpandedPaths(new Set([""]));
+            setRepoInfo({ owner: "local", repo: "zip", name: zipFile.name });
+            setLoading(false);
+          } catch (err) {
+            setLocalSourceKind(null);
+            zipArchiveRef.current = null;
+            setError("Failed to analyze ZIP archive: " + (err.message || err));
+            setLoading(false);
+          }
+        }
+
+        var selectFile = useCallback(
+          function (path) {
+            if (!data) return;
+            var file = data.files.find(function (f) {
+              return f.path === path;
+            });
+            if (file) {
+              setSelected(file);
+              setRightTab("details");
+              if (isMobile) {
+                setMobilePanel("details");
+                setLegendCollapsed(true);
+              }
+              var blast = calcBlast(path, data.connections, data.files);
+              setBlastRadius(blast);
+              setOwnership(null);
+              setExpandedFns(new Set());
+              if (repoInfo && !localSourceKind) {
+                setOwnerLoading(true);
+                GitHub.getBlame(repoInfo.owner, repoInfo.repo, path)
+                  .then(function (owners) {
+                    setOwnership(owners);
+                    setOwnerLoading(false);
+                  })
+                  .catch(function () {
+                    setOwnerLoading(false);
+                  });
+              } else if (localSourceKind) {
+                setOwnerLoading(false);
+                setOwnership([]);
+              }
+              updateGraphHighlight(path, blast);
+            }
+          },
+          [data, repoInfo, localSourceKind, isMobile]
+        );
+        selectFileRef.current = selectFile;
+
+        function updateGraphHighlight(path, blast) {
+          if (!nodesRef.current || !linksRef.current) return;
+          var affectedSet = new Set(blast ? blast.affected : []);
+          nodesRef.current
+            .selectAll(".nc")
+            .transition()
+            .duration(200)
+            .attr("opacity", function (n) {
+              if (n.id === path) return 1;
+              if (affectedSet.has(n.id)) return 1;
+              return path ? 0.2 : 1;
+            })
+            .attr("fill", function (n) {
+              if (n.id === path) return "#ff5f5f";
+              if (affectedSet.has(n.id)) return "#ff9f43";
+              return getNodeColor(n);
+            });
+          linksRef.current
+            .transition()
+            .duration(200)
+            .attr("stroke-opacity", function (l) {
+              var src = l.source.id || l.source;
+              var tgt = l.target.id || l.target;
+              if (src === path || tgt === path) return 0.8;
+              return path ? 0.05 : 0.4;
+            })
+            .attr("stroke", function (l) {
+              var src = l.source.id || l.source;
+              var tgt = l.target.id || l.target;
+              if (src === path || tgt === path) return "var(--acc)";
+              return theme === "light" ? "#ccc" : "#333";
+            });
+        }
+
+        function getNodeColor(d) {
+          if (colorMode === "folder") return colorMap[d.folder] || COLORS[0];
+          if (colorMode === "layer")
+            return LAYER_COLORS[d.layer] || LAYER_COLORS["utils"];
+          if (colorMode === "churn") return colorMap[d.id] || "#22c55e";
+          return COLORS[0];
+        }
+
+        var togglePath = useCallback(function (p) {
+          setExpandedPaths(function (prev) {
+            var n = new Set(prev);
+            if (n.has(p)) n.delete(p);
+            else n.add(p);
+            return n;
+          });
+        }, []);
+        var toggleCard = useCallback(function (id) {
+          setExpandedCards(function (prev) {
+            var n = new Set(prev);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+          });
+        }, []);
+        var toggleFn = useCallback(function (name) {
+          setExpandedFns(function (prev) {
+            var n = new Set(prev);
+            if (n.has(name)) n.delete(name);
+            else n.add(name);
+            return n;
+          });
+        }, []);
+
+        // Syntax highlighting function
+        function highlightSyntax(code, filename) {
+          if (!code) return "";
+          var ext = (filename || "").split(".").pop().toLowerCase();
+          var isJS = ["js", "jsx", "ts", "tsx", "mjs", "cjs"].includes(ext);
+          var isPy = ["py", "pyw", "pyi"].indexOf(ext) >= 0;
+          var isJava = ["java", "kt", "scala", "cs", "go"].includes(ext);
+          var isHTML = ["html", "htm", "vue", "svelte"].includes(ext);
+          var isCSS = ["css", "scss", "sass", "less"].includes(ext);
+          var isJSON = ["json", "yaml", "yml", "toml"].includes(ext);
+          var isRuby = ["rb", "rake"].includes(ext);
+          var isPHP = ext === "php";
+          var isVBA = [
+            "vba",
+            "bas",
+            "cls",
+            "xlsm",
+            "xlam",
+            "xlsb",
+            "xla",
+            "xlw",
+          ].includes(ext);
+          function esc(s) {
+            return s
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+          }
+          // Split into tokens while preserving structure
+          var result = code.split("\n").map(function (line) {
+            var escaped = esc(line);
+            // Comments
+            if (isJS || isJava || isPHP || isCSS)
+              escaped = escaped.replace(
+                /(\/\/.*$)/gm,
+                '<span class="syn-com">$1</span>'
+              );
+            if (isPy || isRuby)
+              escaped = escaped.replace(
+                /(#.*$)/gm,
+                '<span class="syn-com">$1</span>'
+              );
+            if (isHTML)
+              escaped = escaped.replace(
+                /(&lt;!--[\s\S]*?--&gt;)/g,
+                '<span class="syn-com">$1</span>'
+              );
+            // Strings - careful with order
+            escaped = escaped.replace(
+              /(&quot;[^&]*&quot;|'[^']*'|`[^`]*`)/g,
+              '<span class="syn-str">$1</span>'
+            );
+            // Numbers
+            escaped = escaped.replace(
+              /\b(\d+\.?\d*)\b/g,
+              '<span class="syn-num">$1</span>'
+            );
+            // Keywords
+            if (isJS)
+              escaped = escaped.replace(
+                /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|class|extends|import|export|from|default|async|await|yield|typeof|instanceof|in|of|this|super|null|undefined|true|false|void|static|get|set)\b/g,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isPy) {
+              escaped = escaped.replace(
+                /\b(async|await|def|class|return|if|elif|else|for|while|try|except|finally|raise|import|from|as|with|pass|break|continue|lambda|yield|global|nonlocal|assert|True|False|None|and|or|not|in|is|del|match|case|type)\b/g,
+                '<span class="syn-kw">$1</span>'
+              );
+              escaped = escaped.replace(
+                /(@\w+)/g,
+                '<span class="syn-fn">$1</span>'
+              );
+              escaped = escaped.replace(
+                /\b(self|cls)\b/g,
+                '<span class="syn-kw" style="opacity:0.7">$1</span>'
+              );
+            }
+            if (isJava)
+              escaped = escaped.replace(
+                /\b(public|private|protected|static|final|void|class|interface|extends|implements|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|import|package|this|super|null|true|false)\b/g,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isRuby)
+              escaped = escaped.replace(
+                /\b(def|class|module|end|return|if|elsif|else|unless|case|when|for|while|until|do|begin|rescue|ensure|raise|require|include|extend|attr_accessor|attr_reader|attr_writer|true|false|nil|self)\b/g,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isPHP)
+              escaped = escaped.replace(
+                /\b(function|class|return|if|else|elseif|for|foreach|while|do|switch|case|break|continue|try|catch|finally|throw|new|public|private|protected|static|const|use|namespace|extends|implements|true|false|null)\b/g,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isVBA)
+              escaped = escaped.replace(
+                /\b(Public|Private|Friend|Static|Dim|Set|Let|Get|Call|Function|Sub|End Sub|End Function|Exit Sub|Exit Function|If|Then|Else|ElseIf|End If|For|To|Step|Next|Do|Loop|While|Wend|Select|Case|End Select|With|End With|On Error|Resume|GoTo|ByVal|ByRef|Optional|ParamArray|As|Type|Enum|Const|True|False|Nothing|Empty|Null|Me|Application|ThisWorkbook|Worksheets|Cells|Range|MsgBox|InputBox|Debug\.Print)\b/gi,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isCSS)
+              escaped = escaped.replace(
+                /(@media|@import|@keyframes|@font-face|!important)/g,
+                '<span class="syn-kw">$1</span>'
+              );
+            if (isHTML) {
+              escaped = escaped.replace(
+                /(&lt;\/?)([\w-]+)/g,
+                '$1<span class="syn-tag">$2</span>'
+              );
+              escaped = escaped.replace(
+                /([\w-]+)(=)/g,
+                '<span class="syn-attr">$1</span>$2'
+              );
+            }
+            // Function calls
+            escaped = escaped.replace(
+              /\b([a-zA-Z_]\w*)\s*\(/g,
+              '<span class="syn-fn">$1</span>('
+            );
+            // Types (capitalized words in certain contexts)
+            if (isJS || isJava)
+              escaped = escaped.replace(
+                /:\s*([A-Z]\w*)/g,
+                ': <span class="syn-type">$1</span>'
+              );
+            return escaped;
+          });
+          return result;
+        }
+
+        // Open file preview
+        function openFilePreview(path, line) {
+          if (!repoInfo) return;
+          var filename = path.split("/").pop();
+          setFilePreview({
+            path: path,
+            filename: filename,
+            content: null,
+            line: line || null,
+            loading: true,
+            error: null,
+          });
+          // Check if we already have the content in data
+          if (data) {
+            var existingFile = data.files.find(function (f) {
+              return f.path === path;
+            });
+            if (existingFile && existingFile.content) {
+              setFilePreview({
+                path: path,
+                filename: filename,
+                content: existingFile.content,
+                line: line || null,
+                loading: false,
+                error: null,
+              });
+              return;
+            }
+          }
+          // Fetch from GitHub, local directory, or ZIP archive
+          if (localSourceKind === "folder" && localDirHandle) {
+            // Read from a local directory using async traversal
+            (async function () {
+              try {
+                var parts = path.split("/");
+                var currentHandle = localDirHandle;
+                for (var i = 0; i < parts.length - 1; i++) {
+                  currentHandle = await currentHandle.getDirectoryHandle(
+                    parts[i]
+                  );
+                }
+                var fileHandle = await currentHandle.getFileHandle(
+                  parts[parts.length - 1]
+                );
+                var fileObj = await fileHandle.getFile();
+                var content = await fileObj.text();
+                setFilePreview({
+                  path: path,
+                  filename: filename,
+                  content: content,
+                  line: line || null,
+                  loading: false,
+                  error: null,
+                });
+              } catch (e) {
+                setFilePreview({
+                  path: path,
+                  filename: filename,
+                  content: null,
+                  line: line || null,
+                  loading: false,
+                  error: e.message || "Failed to load file",
+                });
+              }
+            })();
+          } else if (localSourceKind === "zip") {
+            (async function () {
+              try {
+                var archive = zipArchiveRef.current;
+                var entry =
+                  archive && archive.entriesByPath
+                    ? archive.entriesByPath[path]
+                    : null;
+                if (!entry)
+                  throw new Error(
+                    "File is not available in the loaded ZIP archive"
+                  );
+                var content = await entry.async("string");
+                setFilePreview({
+                  path: path,
+                  filename: filename,
+                  content: content,
+                  line: line || null,
+                  loading: false,
+                  error: null,
+                });
+              } catch (e) {
+                setFilePreview({
+                  path: path,
+                  filename: filename,
+                  content: null,
+                  line: line || null,
+                  loading: false,
+                  error: e.message || "Failed to load ZIP file",
+                });
+              }
+            })();
+          } else {
+            // Fetch from GitHub
+            GitHub.getFile(repoInfo.owner, repoInfo.repo, path)
+              .then(function (content) {
+                if (content) {
+                  setFilePreview({
+                    path: path,
+                    filename: filename,
+                    content: content,
+                    line: line || null,
+                    loading: false,
+                    error: null,
+                  });
+                } else {
+                  setFilePreview({
+                    path: path,
+                    filename: filename,
+                    content: null,
+                    line: line || null,
+                    loading: false,
+                    error: "Could not load file content",
+                  });
+                }
+              })
+              .catch(function (e) {
+                setFilePreview({
+                  path: path,
+                  filename: filename,
+                  content: null,
+                  line: line || null,
+                  loading: false,
+                  error: e.message || "Failed to load file",
+                });
+              });
+          }
+        }
+
+        // Scroll to highlighted line after file preview loads
+        useEffect(
+          function () {
+            if (
+              filePreview &&
+              filePreview.content &&
+              filePreview.line &&
+              filePreviewRef.current
+            ) {
+              setTimeout(function () {
+                var el = filePreviewRef.current.querySelector(
+                  ".file-preview-line.highlighted"
+                );
+                if (el)
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 100);
+            }
+          },
+          [filePreview]
+        );
+
+        var colorMap = useMemo(
+          function () {
+            if (!data) return {};
+            var m = {};
+            if (colorMode === "folder") {
+              data.folders.forEach(function (f, i) {
+                m[f] = COLORS[i % COLORS.length];
+              });
+              m["root"] = COLORS[0];
+            } else if (colorMode === "layer")
+              data.files.forEach(function (f) {
+                m[f.path] = LAYER_COLORS[f.layer] || COLORS[0];
+              });
+            else if (colorMode === "churn") {
+              var maxC =
+                Math.max.apply(
+                  null,
+                  data.files.map(function (f) {
+                    return f.churn || 0;
+                  })
+                ) || 1;
+              data.files.forEach(function (f) {
+                var r = (f.churn || 0) / maxC;
+                m[f.path] =
+                  r > 0.7 ? "#ff5f5f" : r > 0.4 ? "#ff9f43" : "#22c55e";
+              });
+            }
+            return m;
+          },
+          [data, colorMode]
+        );
