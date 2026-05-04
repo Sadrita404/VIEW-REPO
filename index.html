@@ -10757,3 +10757,332 @@ function getAccentBlockStyle(borderColor, tint, extra) {
           }
 
           setRepoInfo(p);
+            // Authentication promise - resolve immediately for no auth/PAT, authenticate for GitHub App
+          var authPromise;
+          if (authMethod === "github_app") {
+            setProgress("Authenticating with GitHub App...");
+            authPromise = GitHub.authenticateApp(p.owner, p.repo).catch(
+              function (err) {
+                throw new Error(
+                  "GitHub App authentication failed: " + err.message
+                );
+              }
+            );
+          } else {
+            authPromise = Promise.resolve();
+          }
+
+          authPromise
+            .then(function () {
+              setProgress("Loading language parsers...");
+              return Parser.initTreeSitter().catch(function () {
+                return null;
+              });
+            })
+            .then(function () {
+              setProgress("Checking rate limit...");
+              return GitHub.getRateLimit();
+            })
+            .then(function (rl) {
+              var hasAuth = !!GitHub.token || authMethod === "github_app";
+              var estimatedRequests = 50; // Conservative estimate for a small-medium repo
+
+              // Warn if rate limit is very low and no authentication
+              if (!hasAuth && rl.remaining < estimatedRequests) {
+                var resetTime = new Date(rl.reset * 1000).toLocaleTimeString();
+                return requestConfirm({
+                  tone: "warning",
+                  icon: "warning",
+                  title: "GitHub API rate limit is low",
+                  message:
+                    "Remaining requests: " +
+                    rl.remaining +
+                    "/" +
+                    rl.limit +
+                    "\n" +
+                    "Resets at: " +
+                    resetTime +
+                    "\n\n" +
+                    "Without authentication, you only get 60 requests per hour.\n" +
+                    "Adding a token or GitHub App raises that to 5,000 requests per hour.\n\n" +
+                    "Token (PAT): GitHub Settings -> Developer Settings -> Personal access tokens\n" +
+                    "GitHub App: use App ID + Private Key for organization access\n\n" +
+                    "Continue anyway with the remaining requests?",
+                  confirmLabel: "Continue anyway",
+                }).then(function (proceed) {
+                  if (!proceed) {
+                    setLoading(false);
+                    return Promise.reject("cancelled");
+                  }
+                  setProgress("Scanning repository...");
+                  return GitHub.scan(
+                    p.owner,
+                    p.repo,
+                    setProgress,
+                    currentExcludePatterns
+                  );
+                });
+              }
+
+              setProgress("Scanning repository...");
+              return GitHub.scan(
+                p.owner,
+                p.repo,
+                setProgress,
+                currentExcludePatterns
+              );
+            })
+            .then(function (files) {
+              if (!files) return; // Cancelled
+              if (!files.length)
+                throw new Error(
+                  currentExcludePatterns.length
+                    ? "No code files found after applying exclude patterns"
+                    : "No code files found"
+                );
+              var SOFT_LIMIT = ANALYSIS_LIMITS.repoSoft,
+                HARD_LIMIT = ANALYSIS_LIMITS.repoMax;
+              function beginRepoAnalysis() {
+                if (files.length > HARD_LIMIT) {
+                  showNotification(
+                    "Found " +
+                      files.length +
+                      " files. Using a " +
+                      HARD_LIMIT +
+                      "-file API sample. Use Open ZIP for full analysis.",
+                    "warning"
+                  );
+                }
+                var max = Math.min(files.length, HARD_LIMIT);
+                var analyzed = [];
+                var allFns = [];
+
+                function processFile(i) {
+                  if (i >= max) {
+                    finishAnalysis();
+                    return;
+                  }
+                  var f = files[i];
+                  setProgress(
+                    "Analyzing " + (i + 1) + "/" + max + ": " + f.name
+                  );
+                  var isCodeFile = f.isCode !== false && Parser.isCode(f.name);
+                  if (isCodeFile) {
+                    Promise.all([
+                      GitHub.getFile(p.owner, p.repo, f.path),
+                      GitHub.getCommits(p.owner, p.repo, f.path, 10).catch(
+                        function () {
+                          return [];
+                        }
+                      ),
+                    ])
+                      .then(function (results) {
+                        var content = results[0];
+                        var commits = results[1];
+                        if (content) {
+                          var layer = Parser.detectLayer(f.path);
+                          var actualIsCode =
+                            !Parser.isScriptContainer(f.path) ||
+                            Parser.hasEmbeddedCode(content, f.path);
+                          var fns = actualIsCode
+                            ? Parser.extract(content, f.path)
+                            : [];
+                          analyzed.push({
+                            path: f.path,
+                            name: f.name,
+                            folder: f.folder,
+                            content: content,
+                            functions: fns,
+                            lines: content.split("\n").length,
+                            layer: layer,
+                            churn: Array.isArray(commits) ? commits.length : 0,
+                            isCode: actualIsCode,
+                          });
+                          if (actualIsCode) {
+                            fns.forEach(function (fn) {
+                              allFns.push(
+                                Object.assign({}, fn, {
+                                  folder: f.folder,
+                                  layer: layer,
+                                })
+                              );
+                            });
+                          }
+                        }
+                        processFile(i + 1);
+                      })
+                      .catch(function () {
+                        processFile(i + 1);
+                      });
+                  } else {
+                    GitHub.getFile(p.owner, p.repo, f.path)
+                      .then(function (content) {
+                        var layer = Parser.detectLayer(f.path);
+                        var lines = content ? content.split("\n").length : 0;
+                        analyzed.push({
+                          path: f.path,
+                          name: f.name,
+                          folder: f.folder,
+                          content: content || "",
+                          functions: [],
+                          lines: lines,
+                          layer: layer,
+                          churn: 0,
+                          isCode: false,
+                        });
+                        processFile(i + 1);
+                      })
+                      .catch(function () {
+                        analyzed.push({
+                          path: f.path,
+                          name: f.name,
+                          folder: f.folder,
+                          content: "",
+                          functions: [],
+                          lines: 0,
+                          layer: Parser.detectLayer(f.path),
+                          churn: 0,
+                          isCode: false,
+                        });
+                        processFile(i + 1);
+                      });
+                  }
+                }
+
+                async function finishAnalysis() {
+                  try {
+                    var dataObj = await runAnalysisData({
+                      analyzed: analyzed,
+                      allFns: allFns,
+                      excludePatterns: currentExcludePatterns.map(function (x) {
+                        return x.raw;
+                      }),
+                      progress: setProgress,
+                      yieldFn: yieldToBrowser,
+                    });
+                    setData(dataObj);
+                    setExpandedPaths(new Set([""]));
+                    window.history.replaceState(
+                      {},
+                      "",
+                      buildAppUrl(p.owner + "/" + p.repo, false)
+                    );
+                    setLoading(false);
+                  } catch (err) {
+                    setError(
+                      "Analysis failed: " +
+                        (err.message || err) +
+                        ". Try a smaller repository."
+                    );
+                    setLoading(false);
+                  }
+                }
+
+                processFile(0);
+                return null;
+              }
+
+              if (files.length > SOFT_LIMIT && files.length <= HARD_LIMIT) {
+                return requestConfirm({
+                  tone: "warning",
+                  icon: "warning",
+                  title: "Analyze a large repository?",
+                  message:
+                    "This repository has " +
+                    files.length +
+                    " files.\n\n" +
+                    "Analyzing larger repositories can take longer and may hit GitHub API rate limits.\n\n" +
+                    "Tip: add a token or GitHub App for higher limits.",
+                  confirmLabel: "Analyze repository",
+                }).then(function (proceed) {
+                  if (!proceed) {
+                    setLoading(false);
+                    return Promise.reject("cancelled");
+                  }
+                  return beginRepoAnalysis();
+                });
+              }
+
+              if (files.length > HARD_LIMIT) {
+                return requestConfirm({
+                  tone: "warning",
+                  icon: "archive",
+                  title: "Analyze a GitHub API sample?",
+                  message:
+                    "This GitHub repository has " +
+                    files.length +
+                    " analyzable files.\n\n" +
+                    "The browser cannot read GitHub zipball archives directly because GitHub redirects archive downloads to a CORS-restricted host.\n\n" +
+                    "For full analysis: download the repository ZIP from GitHub, then use Open ZIP in VIEW REPO.\n\n" +
+                    "Continue now with a " +
+                    HARD_LIMIT +
+                    "-file API sample?",
+                  confirmLabel: "Analyze sample",
+                }).then(function (proceed) {
+                  if (!proceed) {
+                    setLoading(false);
+                    return Promise.reject("cancelled");
+                  }
+                  return beginRepoAnalysis();
+                });
+              }
+
+              return beginRepoAnalysis();
+            })
+            .catch(function (e) {
+              if (e !== "cancelled") {
+                setError(e.message || e);
+                setLoading(false);
+              }
+            });
+        }
+
+        function launchLocalFolderPicker(compiledPatterns) {
+          pendingExcludePatternsRef.current =
+            compiledPatterns || activeExcludePatterns;
+          if (!window.showDirectoryPicker) {
+            if (folderInputRef.current) {
+              folderInputRef.current.value = "";
+              folderInputRef.current.click();
+            }
+            return;
+          }
+          window
+            .showDirectoryPicker()
+            .then(function (dirHandle) {
+              resetAnalysisState();
+              setRepoInfo(null);
+              setLocalDirHandle(dirHandle);
+              setLocalSourceKind("folder");
+              zipArchiveRef.current = null;
+              zipFileRef.current = null;
+              setLoading(true);
+              setProgress("Reading local folder...");
+              readLocalFolder(
+                dirHandle,
+                compiledPatterns || activeExcludePatterns
+              );
+            })
+            .catch(function (e) {
+              if (e.name !== "AbortError") {
+                setError("Failed to open folder: " + (e.message || e));
+              }
+            });
+        }
+
+        function openLocalFolder() {
+          openExcludeModal(true);
+        }
+
+        function openLocalZip() {
+          if (!window.JSZip) {
+            setError(
+              "ZIP support failed to load. Check your network connection and try again."
+            );
+            return;
+          }
+          if (zipInputRef.current) {
+            zipInputRef.current.value = "";
+            zipInputRef.current.click();
+          }
+        }
