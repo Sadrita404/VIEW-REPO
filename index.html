@@ -10623,3 +10623,137 @@ function getAccentBlockStyle(borderColor, tint, extra) {
             }
           }
         }, []);
+
+         function parseUrl(url) {
+          if (!url || typeof url !== "string") return null;
+          url = url.trim();
+          if (url.length > 200 || url.includes("{") || url.includes('"'))
+            return null;
+          var m = url.match(
+            /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/
+          );
+          if (m) return { owner: m[1], repo: m[2].replace(/\.git$/, "") };
+          var simple = url.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/);
+          if (simple) return { owner: simple[1], repo: simple[2] };
+          return null;
+        }
+
+        function resetAnalysisState() {
+          setError(null);
+          setData(null);
+          setSelected(null);
+          setBlastRadius(null);
+          setOwnership(null);
+          setFolderFilter(null);
+          setPrData(null);
+          setFilePreview(null);
+          setMobilePanel(null);
+          setShowGraphConfig(false);
+        }
+
+        function openExcludeModal(continueToFolder) {
+          setExcludePatternDraft(excludePatternInput);
+          setLaunchFolderAfterExcludeSave(!!continueToFolder);
+          setShowExcludeModal(true);
+        }
+
+        function closeExcludeModal() {
+          setShowExcludeModal(false);
+          setLaunchFolderAfterExcludeSave(false);
+        }
+
+        function saveExcludePatterns() {
+          var nextInput = excludePatternDraft;
+          var nextPatterns = compileExcludePatterns(nextInput);
+          var shouldLaunchFolder = launchFolderAfterExcludeSave;
+          setExcludePatternInput(nextInput);
+          setShowExcludeModal(false);
+          setLaunchFolderAfterExcludeSave(false);
+          if (shouldLaunchFolder) {
+            launchLocalFolderPicker(nextPatterns);
+          }
+        }
+
+        function closeConfirmDialog(result) {
+          setConfirmDialog(null);
+          if (confirmResolverRef.current) {
+            var resolve = confirmResolverRef.current;
+            confirmResolverRef.current = null;
+            resolve(!!result);
+          }
+        }
+
+        function requestConfirm(options) {
+          return new Promise(function (resolve) {
+            if (confirmResolverRef.current) {
+              confirmResolverRef.current(false);
+            }
+            confirmResolverRef.current = resolve;
+            setConfirmDialog(
+              Object.assign(
+                {
+                  tone: "warning",
+                  icon: "warning",
+                  title: "Please confirm",
+                  message: "",
+                  confirmLabel: "Continue",
+                  cancelLabel: "Cancel",
+                },
+                options || {}
+              )
+            );
+          });
+        }
+
+        function toggleMobilePanel(panel) {
+          setMobilePanel(function (prev) {
+            return prev === panel ? null : panel;
+          });
+        }
+
+        function analyze() {
+          var p = parseUrl(repoUrl);
+          if (!p) {
+            setError("Invalid URL. Use format: owner/repo");
+            return;
+          }
+          var currentExcludePatterns = activeExcludePatterns;
+
+          // Validate authentication inputs
+          if (authMethod === "pat" && !token) {
+            setError("Please enter a Personal Access Token");
+            return;
+          }
+          if (authMethod === "github_app") {
+            if (!appId) {
+              setError("Please enter the GitHub App ID");
+              return;
+            }
+            if (!privateKey) {
+              setError("Please set the GitHub App private key");
+              return;
+            }
+          }
+
+          resetAnalysisState();
+          setLocalDirHandle(null);
+          setLocalSourceKind(null);
+          zipArchiveRef.current = null;
+          zipFileRef.current = null;
+          setLoading(true);
+          setProgress("Initializing...");
+
+          // Configure GitHub authentication based on method
+          GitHub.token = null;
+          GitHub.appId = null;
+          GitHub.privateKey = null;
+          GitHub.installationToken = null;
+
+          if (authMethod === "pat") {
+            GitHub.token = token;
+          } else if (authMethod === "github_app") {
+            GitHub.appId = appId;
+            GitHub.privateKey = privateKey;
+          }
+
+          setRepoInfo(p);
