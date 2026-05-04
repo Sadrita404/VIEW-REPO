@@ -1,5 +1,5 @@
 // Walk a repo and collect file content + parsed functions, mirroring the shape
-// the analyzer expects (see tests/codeflow-golden.test.mjs analyzeFixture).
+// the analyzer expects (see tests/viewrepo-golden.test.mjs analyzeFixture).
 
 'use strict';
 
