@@ -10321,3 +10321,305 @@ function getAccentBlockStyle(borderColor, tint, extra) {
             )
         );
       }
+
+
+      // ---------------------------------------------------------------------------
+      // React Application
+      // ---------------------------------------------------------------------------
+
+      function App() {
+        var _a = useState(
+            window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark"
+          ),
+          theme = _a[0],
+          setTheme = _a[1];
+        var _b = useState(""),
+          repoUrl = _b[0],
+          setRepoUrl = _b[1];
+        var _c = useState(""),
+          token = _c[0],
+          setToken = _c[1];
+        var _authMethod = useState("none"),
+          authMethod = _authMethod[0],
+          setAuthMethod = _authMethod[1]; // 'none', 'pat', 'github_app'
+        var _appId = useState(""),
+          appId = _appId[0],
+          setAppId = _appId[1];
+        var _privateKey = useState(""),
+          privateKey = _privateKey[0],
+          setPrivateKey = _privateKey[1];
+        var _showKeyModal = useState(false),
+          showKeyModal = _showKeyModal[0],
+          setShowKeyModal = _showKeyModal[1];
+        var _d = useState(false),
+          loading = _d[0],
+          setLoading = _d[1];
+        var _e = useState(""),
+          progress = _e[0],
+          setProgress = _e[1];
+        var _f = useState(null),
+          error = _f[0],
+          setError = _f[1];
+        var _g = useState(null),
+          data = _g[0],
+          setData = _g[1];
+        var _h = useState(null),
+          repoInfo = _h[0],
+          setRepoInfo = _h[1];
+        var _i = useState("folder"),
+          colorMode = _i[0],
+          setColorMode = _i[1];
+        var _j = useState(null),
+          selected = _j[0],
+          setSelected = _j[1];
+        var _k = useState(new Set([""])),
+          expandedPaths = _k[0],
+          setExpandedPaths = _k[1];
+        var _l = useState(new Set(["blast", "fns"])),
+          expandedCards = _l[0],
+          setExpandedCards = _l[1];
+        var _m = useState("details"),
+          rightTab = _m[0],
+          setRightTab = _m[1];
+        var _m2 = useState(null),
+          drillDown = _m2[0],
+          setDrillDown = _m2[1]; // {type:'issue'|'pattern'|'security'|'suggestion'|'duplicate', data:...}
+        var _n = useState(null),
+          blastRadius = _n[0],
+          setBlastRadius = _n[1];
+        var _o = useState(null),
+          ownership = _o[0],
+          setOwnership = _o[1];
+        var _p = useState(""),
+          prUrl = _p[0],
+          setPrUrl = _p[1];
+        var _q = useState(null),
+          prData = _q[0],
+          setPrData = _q[1];
+        var _r = useState(false),
+          showExport = _r[0],
+          setShowExport = _r[1];
+        var _s = useState(false),
+          showPR = _s[0],
+          setShowPR = _s[1];
+        var _t = useState(false),
+          showPrivacy = _t[0],
+          setShowPrivacy = _t[1];
+        var _u = useState(null),
+          tooltip = _u[0],
+          setTooltip = _u[1];
+        var _v = useState(null),
+          toast = _v[0],
+          setToast = _v[1];
+        var _w = useState(false),
+          ownerLoading = _w[0],
+          setOwnerLoading = _w[1];
+        var _x = useState(null),
+          folderFilter = _x[0],
+          setFolderFilter = _x[1];
+        var _y = useState(new Set()),
+          expandedFns = _y[0],
+          setExpandedFns = _y[1];
+        var _z = useState(false),
+          showUnused = _z[0],
+          setShowUnused = _z[1];
+        var _aa = useState({
+            spacing: 200,
+            linkDist: 70,
+            viewMode: "force",
+            vizType: "graph",
+            showLabels: true,
+            curvedLinks: true,
+          }),
+          graphConfig = _aa[0],
+          setGraphConfig = _aa[1];
+        var _ab = useState(false),
+          showGraphConfig = _ab[0],
+          setShowGraphConfig = _ab[1];
+        var _ac = useState(260),
+          sidebarWidth = _ac[0],
+          setSidebarWidth = _ac[1];
+        var _ad = useState(360),
+          rightPanelWidth = _ad[0],
+          setRightPanelWidth = _ad[1];
+        var _ae = useState(true),
+          legendCollapsed = _ae[0],
+          setLegendCollapsed = _ae[1];
+        var _af = useState(null),
+          filePreview = _af[0],
+          setFilePreview = _af[1]; // {path, content, line, filename, loading, error}
+        var _ag = useState(null),
+          localDirHandle = _ag[0],
+          setLocalDirHandle = _ag[1];
+        var _ap = useState(null),
+          localSourceKind = _ap[0],
+          setLocalSourceKind = _ap[1]; // null | 'folder' | 'zip'
+        var _ah = useState(false),
+          showExcludeModal = _ah[0],
+          setShowExcludeModal = _ah[1];
+        var _ai = useState(""),
+          excludePatternInput = _ai[0],
+          setExcludePatternInput = _ai[1];
+        var _aj = useState(""),
+          excludePatternDraft = _aj[0],
+          setExcludePatternDraft = _aj[1];
+        var _ak = useState(false),
+          launchFolderAfterExcludeSave = _ak[0],
+          setLaunchFolderAfterExcludeSave = _ak[1];
+        var _al = useState(null),
+          confirmDialog = _al[0],
+          setConfirmDialog = _al[1];
+        var _am = useState(window.innerWidth),
+          viewportWidth = _am[0],
+          setViewportWidth = _am[1];
+        var _an = useState(null),
+          mobilePanel = _an[0],
+          setMobilePanel = _an[1];
+        var _ao = useState(48),
+          topbarHeight = _ao[0],
+          setTopbarHeight = _ao[1];
+        var isMobile = viewportWidth <= 980;
+        var svgRef = useRef(null);
+        var topbarRef = useRef(null);
+        var filePreviewRef = useRef(null);
+        var treemapRef = useRef(null);
+        var matrixRef = useRef(null);
+        var dendroRef = useRef(null);
+        var sankeyRef = useRef(null);
+        var disjointRef = useRef(null);
+        var bundleRef = useRef(null);
+        var zoomRef = useRef(null);
+        var simRef = useRef(null);
+        var nodesRef = useRef(null);
+        var linksRef = useRef(null);
+        var selectFileRef = useRef(null);
+        var zipInputRef = useRef(null);
+        var zipArchiveRef = useRef(null);
+        var zipFileRef = useRef(null);
+        var folderInputRef = useRef(null);
+        var localFilesRef = useRef(null);
+        var pendingExcludePatternsRef = useRef(null);
+        var confirmResolverRef = useRef(null);
+        var activeExcludePatterns = useMemo(
+          function () {
+            return compileExcludePatterns(excludePatternInput);
+          },
+          [excludePatternInput]
+        );
+        var customExcludeCount = activeExcludePatterns.length;
+
+        useEffect(
+          function () {
+            document.body.className = theme === "light" ? "light" : "";
+          },
+          [theme]
+        );
+
+        useEffect(function () {
+          var el = folderInputRef.current;
+          if (!el) return;
+          el.setAttribute("webkitdirectory", "");
+          el.setAttribute("directory", "");
+          el.setAttribute("mozdirectory", "");
+        }, []);
+
+        useEffect(function () {
+          function onResize() {
+            setViewportWidth(window.innerWidth);
+          }
+          window.addEventListener("resize", onResize);
+          onResize();
+          return function () {
+            window.removeEventListener("resize", onResize);
+          };
+        }, []);
+
+        useEffect(function () {
+          if (!topbarRef.current) return;
+          function measureTopbar() {
+            if (topbarRef.current) {
+              setTopbarHeight(topbarRef.current.offsetHeight || 48);
+            }
+          }
+          measureTopbar();
+          if (typeof ResizeObserver === "undefined") {
+            window.addEventListener("resize", measureTopbar);
+            return function () {
+              window.removeEventListener("resize", measureTopbar);
+            };
+          }
+          var observer = new ResizeObserver(measureTopbar);
+          observer.observe(topbarRef.current);
+          return function () {
+            observer.disconnect();
+          };
+        }, []);
+
+        useEffect(
+          function () {
+            if (!isMobile) {
+              setMobilePanel(null);
+              return;
+            }
+            setLegendCollapsed(true);
+            setShowGraphConfig(false);
+          },
+          [isMobile]
+        );
+
+        useEffect(
+          function () {
+            if (!data) {
+              setMobilePanel(null);
+            }
+          },
+          [data]
+        );
+
+        useEffect(function () {
+          return function () {
+            if (confirmResolverRef.current) {
+              confirmResolverRef.current(false);
+              confirmResolverRef.current = null;
+            }
+          };
+        }, []);
+
+        useEffect(
+          function () {
+            if (!confirmDialog) return;
+            function onKeyDown(e) {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                closeConfirmDialog(false);
+              }
+            }
+            document.addEventListener("keydown", onKeyDown);
+            return function () {
+              document.removeEventListener("keydown", onKeyDown);
+            };
+          },
+          [confirmDialog]
+        );
+
+        useEffect(function () {
+          var params = new URLSearchParams(window.location.search);
+          var repo = params.get("repo");
+          var shouldAutoRun = params.get("run") === "1";
+          if (
+            repo &&
+            repo.length < 200 &&
+            !repo.includes("{") &&
+            /^[a-zA-Z0-9_.\/-]+$/.test(repo)
+          ) {
+            setRepoUrl(repo);
+            if (shouldAutoRun) {
+              setTimeout(function () {
+                var btn = document.getElementById("analyze-btn");
+                if (btn) btn.click();
+              }, 500);
+            }
+          }
+        }, []);
