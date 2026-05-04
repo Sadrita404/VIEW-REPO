@@ -11345,3 +11345,155 @@ function getAccentBlockStyle(borderColor, tint, extra) {
             zipInputRef.current.click();
           }
         }
+
+        async function readLocalFolderFromFiles(fileObjs, compiledPatterns) {
+          var patterns = compiledPatterns || activeExcludePatterns;
+          var SOFT_LIMIT = ANALYSIS_LIMITS.localSoft;
+          try {
+            setProgress("Loading language parsers...");
+            await Parser.initTreeSitter().catch(function () {
+              return null;
+            });
+            setProgress("Scanning local folder...");
+            var rawPaths = fileObjs.map(function (f) {
+              return f.webkitRelativePath || f.name;
+            });
+            var rootPrefix = getArchiveRootPrefix(rawPaths);
+            var files = [];
+            var fileCount = 0;
+            var dirCache = new Map();
+
+            fileObjs.forEach(function (fileObj) {
+              var rawPath = normalizeExcludePath(
+                fileObj.webkitRelativePath || fileObj.name
+              );
+              if (!rawPath || rawPath.endsWith("/")) return;
+              var entryPath =
+                rootPrefix && rawPath.indexOf(rootPrefix) === 0
+                  ? rawPath.slice(rootPrefix.length)
+                  : rawPath;
+              entryPath = normalizeExcludePath(entryPath);
+              if (
+                !entryPath ||
+                shouldSkipArchivePath(entryPath, patterns, dirCache)
+              )
+                return;
+              var parts = entryPath.split("/").filter(Boolean);
+              var name = parts[parts.length - 1] || "";
+              if (
+                !name ||
+                name === ".DS_Store" ||
+                shouldExcludeFile(entryPath, name, patterns)
+              )
+                return;
+              var folder =
+                parts.length > 1 ? parts.slice(0, -1).join("/") : "root";
+              fileCount++;
+              files.push({
+                path: entryPath,
+                name: name,
+                folder: folder,
+                size: fileObj.size || 0,
+                isCode: Parser.isCode(name),
+                file: fileObj,
+              });
+              if (fileCount % 50 === 0) {
+                setProgress("Scanning files... " + fileCount + " found");
+              }
+            });
+
+            if (fileCount === 0) {
+              setError(
+                patterns && patterns.length
+                  ? "No code files found in the selected folder after applying exclude patterns"
+                  : "No code files found in the selected folder"
+              );
+              setLoading(false);
+              return;
+            }
+
+            if (fileCount > SOFT_LIMIT) {
+              var proceed = await requestConfirm({
+                tone: "warning",
+                icon: "folder",
+                title: "Analyze " + fileCount + " files?",
+                message:
+                  "This folder has " +
+                  fileCount +
+                  " analyzable files.\n\n" +
+                  "VIEW REPO will analyze every eligible file. Large folders can take minutes and use significant browser memory.\n\n" +
+                  "Continue with all " +
+                  fileCount +
+                  " files?",
+                confirmLabel: "Analyze all files",
+              });
+              if (!proceed) {
+                setLoading(false);
+                return;
+              }
+            }
+
+            var max = files.length;
+            var analyzed = [];
+            var allFns = [];
+            for (var i = 0; i < max; i++) {
+              var f = files[i];
+              if (i > 0 && i % 50 === 0) await yieldToBrowser();
+              setProgress("Analyzing " + (i + 1) + "/" + max + ": " + f.name);
+              var isCodeFile = f.isCode !== false && Parser.isCode(f.name);
+              try {
+                var content = await f.file.text();
+                var layer = Parser.detectLayer(f.path);
+                if (isCodeFile) {
+                  var actualIsCode =
+                    !Parser.isScriptContainer(f.path) ||
+                    Parser.hasEmbeddedCode(content, f.path);
+                  var fns = actualIsCode ? Parser.extract(content, f.path) : [];
+                  analyzed.push({
+                    path: f.path,
+                    name: f.name,
+                    folder: f.folder,
+                    content: content,
+                    functions: fns,
+                    lines: content.split("\n").length,
+                    layer: layer,
+                    churn: 0,
+                    isCode: actualIsCode,
+                  });
+                  if (actualIsCode) {
+                    fns.forEach(function (fn) {
+                      allFns.push(
+                        Object.assign({}, fn, {
+                          folder: f.folder,
+                          layer: layer,
+                        })
+                      );
+                    });
+                  }
+                } else {
+                  analyzed.push({
+                    path: f.path,
+                    name: f.name,
+                    folder: f.folder,
+                    content: content || "",
+                    functions: [],
+                    lines: content ? content.split("\n").length : 0,
+                    layer: layer,
+                    churn: 0,
+                    isCode: false,
+                  });
+                }
+              } catch (e) {
+                analyzed.push({
+                  path: f.path,
+                  name: f.name,
+                  folder: f.folder,
+                  content: "",
+                  functions: [],
+                  lines: 0,
+                  layer: Parser.detectLayer(f.path),
+                  churn: 0,
+                  isCode: false,
+                });
+              }
+            }
