@@ -17245,3 +17245,443 @@
                                         )
                                     )
                                 ),
+                                 (function () {
+                                var outgoing = [],
+                                  incoming = [];
+                                var connByFile = { out: {}, in: {} };
+                                data.connections.forEach(function (c) {
+                                  var src =
+                                    typeof c.source === "object"
+                                      ? c.source.id
+                                      : c.source;
+                                  var tgt =
+                                    typeof c.target === "object"
+                                      ? c.target.id
+                                      : c.target;
+                                  if (src === selected.path) {
+                                    if (!connByFile.out[tgt])
+                                      connByFile.out[tgt] = {
+                                        file: tgt,
+                                        fns: [],
+                                      };
+                                    connByFile.out[tgt].fns.push({
+                                      name: c.fn,
+                                      count: c.count,
+                                    });
+                                  }
+                                  if (tgt === selected.path) {
+                                    if (!connByFile.in[src])
+                                      connByFile.in[src] = {
+                                        file: src,
+                                        fns: [],
+                                      };
+                                    connByFile.in[src].fns.push({
+                                      name: c.fn,
+                                      count: c.count,
+                                    });
+                                  }
+                                });
+                                outgoing = Object.values(connByFile.out).sort(
+                                  function (a, b) {
+                                    return b.fns.length - a.fns.length;
+                                  }
+                                );
+                                incoming = Object.values(connByFile.in).sort(
+                                  function (a, b) {
+                                    return b.fns.length - a.fns.length;
+                                  }
+                                );
+                                var totalConns =
+                                  outgoing.length + incoming.length;
+                                return (
+                                  totalConns > 0 &&
+                                  React.createElement(
+                                    "div",
+                                    {
+                                      className: "card",
+                                      style: { marginBottom: 12 },
+                                    },
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        className: "card-header",
+                                        onClick: function () {
+                                          toggleCard("conns");
+                                        },
+                                      },
+                                      React.createElement(
+                                        "div",
+                                        { className: "card-title" },
+                                        React.createElement(
+                                          "span",
+                                          {
+                                            className:
+                                              "card-toggle" +
+                                              (expandedCards.has("conns")
+                                                ? " open"
+                                                : ""),
+                                          },
+                                          "▶"
+                                        ),
+                                        React.createElement(Icon, {
+                                          name: "link",
+                                          size: "s",
+                                        }),
+                                        " Connections"
+                                      ),
+                                      React.createElement(
+                                        "span",
+                                        { className: "badge badge-default" },
+                                        totalConns
+                                      )
+                                    ),
+                                    expandedCards.has("conns") &&
+                                      React.createElement(
+                                        "div",
+                                        {
+                                          className: "card-body",
+                                          style: { padding: 0 },
+                                        },
+                                        outgoing.length > 0 &&
+                                          React.createElement(
+                                            React.Fragment,
+                                            null,
+                                            React.createElement(
+                                              "div",
+                                              {
+                                                style: {
+                                                  fontSize: 9,
+                                                  fontWeight: 600,
+                                                  color: "var(--t3)",
+                                                  padding: "8px 12px",
+                                                  background: "var(--bg2)",
+                                                  borderBottom:
+                                                    "1px solid var(--border)",
+                                                },
+                                              },
+                                              "Uses (",
+                                              outgoing.length,
+                                              " files)"
+                                            ),
+                                            outgoing
+                                              .slice(0, 15)
+                                              .map(function (conn) {
+                                                var isOpen = expandedCards.has(
+                                                  "conn-out-" + conn.file
+                                                );
+                                                return React.createElement(
+                                                  "div",
+                                                  {
+                                                    key: conn.file,
+                                                    className: "conn-item",
+                                                  },
+                                                  React.createElement(
+                                                    "div",
+                                                    {
+                                                      className: "conn-header",
+                                                      onClick: function (e) {
+                                                        e.stopPropagation();
+                                                        toggleCard(
+                                                          "conn-out-" +
+                                                            conn.file
+                                                        );
+                                                      },
+                                                    },
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "card-toggle" +
+                                                          (isOpen
+                                                            ? " open"
+                                                            : ""),
+                                                        style: {
+                                                          fontSize: 8,
+                                                          marginRight: 6,
+                                                        },
+                                                      },
+                                                      "▶"
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "conn-file-icon",
+                                                      },
+                                                      React.createElement(
+                                                        Icon,
+                                                        {
+                                                          name: "file",
+                                                          size: "s",
+                                                        }
+                                                      )
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "conn-file-name",
+                                                      },
+                                                      conn.file.split("/").pop()
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "badge badge-default",
+                                                        style: {
+                                                          marginLeft: "auto",
+                                                        },
+                                                      },
+                                                      conn.fns.length,
+                                                      " fn",
+                                                      conn.fns.length !== 1
+                                                        ? "s"
+                                                        : ""
+                                                    )
+                                                  ),
+                                                  isOpen &&
+                                                    React.createElement(
+                                                      "div",
+                                                      { className: "conn-fns" },
+                                                      conn.fns.map(function (
+                                                        fn,
+                                                        i
+                                                      ) {
+                                                        return React.createElement(
+                                                          "div",
+                                                          {
+                                                            key: i,
+                                                            className:
+                                                              "conn-fn",
+                                                          },
+                                                          React.createElement(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "conn-fn-name",
+                                                            },
+                                                            fn.name,
+                                                            "()"
+                                                          ),
+                                                          React.createElement(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "conn-fn-count",
+                                                            },
+                                                            fn.count,
+                                                            "×"
+                                                          )
+                                                        );
+                                                      }),
+                                                      React.createElement(
+                                                        "div",
+                                                        {
+                                                          className:
+                                                            "conn-goto",
+                                                          onClick: function () {
+                                                            selectFile(
+                                                              conn.file
+                                                            );
+                                                          },
+                                                        },
+                                                        "→ View ",
+                                                        conn.file
+                                                          .split("/")
+                                                          .pop()
+                                                      )
+                                                    )
+                                                );
+                                              }),
+                                            outgoing.length > 15 &&
+                                              React.createElement(
+                                                "div",
+                                                {
+                                                  style: {
+                                                    fontSize: 9,
+                                                    color: "var(--t3)",
+                                                    padding: 8,
+                                                    textAlign: "center",
+                                                  },
+                                                },
+                                                "+",
+                                                outgoing.length - 15,
+                                                " more files"
+                                              )
+                                          ),
+                                        incoming.length > 0 &&
+                                          React.createElement(
+                                            React.Fragment,
+                                            null,
+                                            React.createElement(
+                                              "div",
+                                              {
+                                                style: {
+                                                  fontSize: 9,
+                                                  fontWeight: 600,
+                                                  color: "var(--t3)",
+                                                  padding: "8px 12px",
+                                                  background: "var(--bg2)",
+                                                  borderBottom:
+                                                    "1px solid var(--border)",
+                                                  borderTop:
+                                                    outgoing.length > 0
+                                                      ? "1px solid var(--border)"
+                                                      : "none",
+                                                },
+                                              },
+                                              "Used by (",
+                                              incoming.length,
+                                              " files)"
+                                            ),
+                                            incoming
+                                              .slice(0, 15)
+                                              .map(function (conn) {
+                                                var isOpen = expandedCards.has(
+                                                  "conn-in-" + conn.file
+                                                );
+                                                return React.createElement(
+                                                  "div",
+                                                  {
+                                                    key: conn.file,
+                                                    className: "conn-item",
+                                                  },
+                                                  React.createElement(
+                                                    "div",
+                                                    {
+                                                      className: "conn-header",
+                                                      onClick: function (e) {
+                                                        e.stopPropagation();
+                                                        toggleCard(
+                                                          "conn-in-" + conn.file
+                                                        );
+                                                      },
+                                                    },
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "card-toggle" +
+                                                          (isOpen
+                                                            ? " open"
+                                                            : ""),
+                                                        style: {
+                                                          fontSize: 8,
+                                                          marginRight: 6,
+                                                        },
+                                                      },
+                                                      "▶"
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "conn-file-icon",
+                                                      },
+                                                      React.createElement(
+                                                        Icon,
+                                                        {
+                                                          name: "file",
+                                                          size: "s",
+                                                        }
+                                                      )
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "conn-file-name",
+                                                      },
+                                                      conn.file.split("/").pop()
+                                                    ),
+                                                    React.createElement(
+                                                      "span",
+                                                      {
+                                                        className:
+                                                          "badge badge-default",
+                                                        style: {
+                                                          marginLeft: "auto",
+                                                        },
+                                                      },
+                                                      conn.fns.length,
+                                                      " fn",
+                                                      conn.fns.length !== 1
+                                                        ? "s"
+                                                        : ""
+                                                    )
+                                                  ),
+                                                  isOpen &&
+                                                    React.createElement(
+                                                      "div",
+                                                      { className: "conn-fns" },
+                                                      conn.fns.map(function (
+                                                        fn,
+                                                        i
+                                                      ) {
+                                                        return React.createElement(
+                                                          "div",
+                                                          {
+                                                            key: i,
+                                                            className:
+                                                              "conn-fn",
+                                                          },
+                                                          React.createElement(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "conn-fn-name",
+                                                            },
+                                                            fn.name,
+                                                            "()"
+                                                          ),
+                                                          React.createElement(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "conn-fn-count",
+                                                            },
+                                                            fn.count,
+                                                            "×"
+                                                          )
+                                                        );
+                                                      }),
+                                                      React.createElement(
+                                                        "div",
+                                                        {
+                                                          className:
+                                                            "conn-goto",
+                                                          onClick: function () {
+                                                            selectFile(
+                                                              conn.file
+                                                            );
+                                                          },
+                                                        },
+                                                        "→ View ",
+                                                        conn.file
+                                                          .split("/")
+                                                          .pop()
+                                                      )
+                                                    )
+                                                );
+                                              }),
+                                            incoming.length > 15 &&
+                                              React.createElement(
+                                                "div",
+                                                {
+                                                  style: {
+                                                    fontSize: 9,
+                                                    color: "var(--t3)",
+                                                    padding: 8,
+                                                    textAlign: "center",
+                                                  },
+                                                },
+                                                "+",
+                                                incoming.length - 15,
+                                                " more files"
+                                              )
+                                          )
+                                      )
+                                  )
+                                );
+                              })(),
