@@ -19143,3 +19143,276 @@
                       return React.createElement(
                         React.Fragment,
                         null,
+                        React.createElement(
+                          "div",
+                          {
+                            className: "pr-header",
+                            style: { marginBottom: 16 },
+                          },
+                          React.createElement(
+                            "div",
+                            { className: "pr-title", style: { fontSize: 14 } },
+                            prData.title
+                          ),
+                          React.createElement(
+                            "div",
+                            { className: "pr-stats", style: { marginTop: 8 } },
+                            React.createElement(
+                              "span",
+                              { className: "pr-add" },
+                              "+",
+                              prData.additions || 0
+                            ),
+                            React.createElement(
+                              "span",
+                              { className: "pr-del" },
+                              "-",
+                              prData.deletions || 0
+                            ),
+                            React.createElement(
+                              "span",
+                              { style: { color: "var(--t3)", marginLeft: 8 } },
+                              prData.files ? prData.files.length : 0,
+                              " files"
+                            )
+                          )
+                        ),
+                        React.createElement(
+                          "div",
+                          { className: "pr-impact-grid" },
+                          React.createElement(
+                            "div",
+                            { className: "pr-impact-card" },
+                            React.createElement(
+                              "div",
+                              { className: "pr-risk-meter" },
+                              React.createElement(
+                                "div",
+                                {
+                                  className: "pr-risk-circle",
+                                  style: {
+                                    borderColor: riskColor,
+                                    background:
+                                      "rgba(" +
+                                      [
+                                        risk.level === "critical"
+                                          ? "255,95,95"
+                                          : risk.level === "high"
+                                          ? "255,159,67"
+                                          : risk.level === "medium"
+                                          ? "77,159,255"
+                                          : "34,197,94",
+                                      ].join(",") +
+                                      ",0.1)",
+                                  },
+                                },
+                                React.createElement(
+                                  "div",
+                                  {
+                                    className: "pr-risk-value",
+                                    style: { color: riskColor },
+                                  },
+                                  risk.score
+                                ),
+                                React.createElement(
+                                  "div",
+                                  {
+                                    className: "pr-risk-text",
+                                    style: { color: riskColor },
+                                  },
+                                  risk.level
+                                )
+                              ),
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    marginTop: 12,
+                                    fontSize: 10,
+                                    color: "var(--t2)",
+                                    textAlign: "center",
+                                  },
+                                },
+                                "Risk Score"
+                              )
+                            ),
+                            risk.factors.length > 0 &&
+                              React.createElement(
+                                "div",
+                                { style: { marginTop: 12 } },
+                                risk.factors.map(function (f, i) {
+                                  return React.createElement(
+                                    "div",
+                                    {
+                                      key: i,
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--t2)",
+                                        padding: "4px 0",
+                                        borderTop:
+                                          i > 0
+                                            ? "1px solid var(--border2)"
+                                            : "none",
+                                      },
+                                    },
+                                    "• ",
+                                    f
+                                  );
+                                })
+                              )
+                          ),
+                          React.createElement(
+                            "div",
+                            { className: "pr-impact-card" },
+                            React.createElement(
+                              "div",
+                              { className: "pr-impact-card-title" },
+                              iconLabel("impact", "Impact Metrics")
+                            ),
+                            React.createElement(
+                              "div",
+                              { className: "pr-metric-row" },
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-label" },
+                                "Total Blast Radius"
+                              ),
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-value" },
+                                risk.totalBlast,
+                                " files"
+                              )
+                            ),
+                            React.createElement(
+                              "div",
+                              { className: "pr-metric-row" },
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-label" },
+                                "Files Changed"
+                              ),
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-value" },
+                                prData.files ? prData.files.length : 0
+                              )
+                            ),
+                            React.createElement(
+                              "div",
+                              { className: "pr-metric-row" },
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-label" },
+                                "Lines Modified"
+                              ),
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-value" },
+                                (prData.additions || 0) +
+                                  (prData.deletions || 0)
+                              )
+                            ),
+                            
+                                {
+                                  className: "pr-metric-value",
+                                  style: {
+                                    color:
+                                      (prData.additions || 0) -
+                                        (prData.deletions || 0) >=
+                                      0
+                                        ? "var(--green)"
+                                        : "var(--red)",
+                                  },
+                                },
+                                (prData.additions || 0) -
+                                  (prData.deletions || 0) >
+                                  0
+                                  ? "+"
+                                  : "",
+                                (prData.additions || 0) -
+                                  (prData.deletions || 0)
+                              )
+                            )
+                          ),
+                          reviewers.length > 0 &&
+                            React.createElement(
+                              "div",
+                              { className: "pr-impact-card" },
+                              React.createElement(
+                                "div",
+                                { className: "pr-impact-card-title" },
+                                iconLabel("users", "Suggested Reviewers")
+                              ),
+                              reviewers.map(function (r, i) {
+                                return React.createElement(
+                                  "div",
+                                  { key: i, className: "pr-reviewer-card" },
+                                  React.createElement(
+                                    "div",
+                                    {
+                                      className: "pr-reviewer-avatar",
+                                      style: { background: r.avatar },
+                                    },
+                                    r.name[0]
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    { className: "pr-reviewer-info" },
+                                    React.createElement(
+                                      "div",
+                                      { className: "pr-reviewer-name" },
+                                      r.name
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      { className: "pr-reviewer-reason" },
+                                      r.reason
+                                    )
+                                  )
+                                );
+                              })
+                            ),
+                          testImpact.length > 0 &&
+                            React.createElement(
+                              "div",
+                              { className: "pr-impact-card" },
+                              React.createElement(
+                                "div",
+                                { className: "pr-impact-card-title" },
+                                iconLabel("beaker", "Test Impact")
+                              ),
+                              React.createElement(
+                                "div",
+                                { className: "pr-test-impact" },
+                                testImpact.slice(0, 5).map(function (t, i) {
+                                  return React.createElement(
+                                    "div",
+                                    { key: i, className: "pr-test-file" },
+                                    React.createElement(
+                                      "span",
+                                      { className: "pr-test-icon" },
+                                      React.createElement(Icon, {
+                                        name: t.suggested
+                                          ? "spark"
+                                          : "security",
+                                        size: "s",
+                                      })
+                                    ),
+                                    React.createElement(
+                                      "span",
+                                      { style: { flex: 1 } },
+                                      t.file
+                                    ),
+                                    t.suggested &&
+                                      React.createElement(
+                                        "span",
+                                        { className: "badge badge-info" },
+                                        "suggested"
+                                      )
+                                  );
+                                })
+                              )
+                            )
+                        ),
+                        
