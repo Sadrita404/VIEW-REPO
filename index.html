@@ -17685,3 +17685,771 @@
                                   )
                                 );
                               })(),
+                              React.createElement(
+                                "div",
+                                {
+                                  className: "card",
+                                  style: { marginBottom: 12 },
+                                },
+                                React.createElement(
+                                  "div",
+                                  {
+                                    className: "card-header",
+                                    onClick: function () {
+                                      toggleCard("own");
+                                    },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    { className: "card-title" },
+                                    React.createElement(
+                                      "span",
+                                      {
+                                        className:
+                                          "card-toggle" +
+                                          (expandedCards.has("own")
+                                            ? " open"
+                                            : ""),
+                                      },
+                                      "▶"
+                                    ),
+                                    React.createElement(Icon, {
+                                      name: "users",
+                                      size: "s",
+                                    }),
+                                    " Ownership"
+                                  )
+                                ),
+                                expandedCards.has("own") &&
+                                  React.createElement(
+                                    "div",
+                                    { className: "card-body" },
+                                    ownerLoading
+                                      ? React.createElement(
+                                          "div",
+                                          { className: "loading-owner" },
+                                          "Loading ownership data..."
+                                        )
+                                      : ownership && ownership.length > 0
+                                      ? React.createElement(
+                                          React.Fragment,
+                                          null,
+                                          React.createElement(
+                                            "div",
+                                            { className: "owner-bar" },
+                                            ownership
+                                              .slice(0, 5)
+                                              .map(function (o, i) {
+                                                return React.createElement(
+                                                  "div",
+                                                  {
+                                                    key: i,
+                                                    className: "owner-segment",
+                                                    style: {
+                                                      width: o.percent + "%",
+                                                      background:
+                                                        COLORS[
+                                                          i % COLORS.length
+                                                        ],
+                                                    },
+                                                  }
+                                                );
+                                              })
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            { className: "owner-list" },
+                                            ownership
+                                              .slice(0, 5)
+                                              .map(function (o, i) {
+                                                return React.createElement(
+                                                  "div",
+                                                  {
+                                                    key: i,
+                                                    className: "owner-item",
+                                                  },
+                                                  React.createElement(
+                                                    "div",
+                                                    {
+                                                      className: "owner-avatar",
+                                                      style: {
+                                                        background:
+                                                          COLORS[
+                                                            i % COLORS.length
+                                                          ],
+                                                      },
+                                                    },
+                                                    o.name[0].toUpperCase()
+                                                  ),
+                                                  React.createElement(
+                                                    "span",
+                                                    { className: "owner-name" },
+                                                    o.name
+                                                  ),
+                                                  React.createElement(
+                                                    "span",
+                                                    {
+                                                      className:
+                                                        "owner-percent",
+                                                    },
+                                                    o.percent,
+                                                    "%"
+                                                  )
+                                                );
+                                              })
+                                          )
+                                        )
+                                      : React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              fontSize: 10,
+                                              color: "var(--t3)",
+                                              padding: 8,
+                                            },
+                                          },
+                                          "No ownership data available"
+                                        )
+                                  )
+                              ),
+                              React.createElement(
+                                "div",
+                                { className: "card" },
+                                React.createElement(
+                                  "div",
+                                  {
+                                    className: "card-header",
+                                    onClick: function () {
+                                      toggleCard("fns");
+                                    },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    { className: "card-title" },
+                                    React.createElement(
+                                      "span",
+                                      {
+                                        className:
+                                          "card-toggle" +
+                                          (expandedCards.has("fns")
+                                            ? " open"
+                                            : ""),
+                                      },
+                                      "▶"
+                                    ),
+                                    React.createElement(Icon, {
+                                      name: "bolt",
+                                      size: "s",
+                                    }),
+                                    " Functions (",
+                                    selected.functions.length,
+                                    ")"
+                                  )
+                                ),
+                                expandedCards.has("fns") &&
+                                  React.createElement(
+                                    "div",
+                                    {
+                                      className: "card-body",
+                                      style: { padding: 8 },
+                                    },
+                                    selected.functions.length === 0
+                                      ? React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              fontSize: 10,
+                                              color: "var(--t3)",
+                                              padding: 8,
+                                              textAlign: "center",
+                                            },
+                                          },
+                                          "No functions detected"
+                                        )
+                                      : selected.functions.map(function (fn) {
+                                          var st = data.fnStats[fn.name];
+                                          var isExpanded = expandedFns.has(
+                                            fn.name
+                                          );
+                                          var intCalls = st ? st.internal : 0,
+                                            extCalls = st ? st.external : 0;
+                                          return React.createElement(
+                                            "div",
+                                            {
+                                              key: fn.name,
+                                              className: "fn-item",
+                                            },
+                                            React.createElement(
+                                              "div",
+                                              {
+                                                className: "fn-header",
+                                                onClick: function () {
+                                                  toggleFn(fn.name);
+                                                },
+                                              },
+                                              React.createElement(
+                                                "span",
+                                                { className: "fn-name" },
+                                                fn.name,
+                                                "()"
+                                              ),
+                                              React.createElement(
+                                                "span",
+                                                {
+                                                  style: {
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 4,
+                                                  },
+                                                },
+                                                React.createElement(
+                                                  "button",
+                                                  {
+                                                    className: "view-file-btn",
+                                                    onClick: function (e) {
+                                                      e.stopPropagation();
+                                                      openFilePreview(
+                                                        selected.path,
+                                                        fn.line
+                                                      );
+                                                    },
+                                                    title: "View source",
+                                                  },
+                                                  React.createElement(Icon, {
+                                                    name: "eye",
+                                                    size: "s",
+                                                  })
+                                                ),
+                                                React.createElement(
+                                                  "span",
+                                                  { className: "fn-line" },
+                                                  "L",
+                                                  fn.line
+                                                ),
+                                                React.createElement(
+                                                  "span",
+                                                  {
+                                                    className:
+                                                      "badge badge-default",
+                                                    title:
+                                                      "Internal calls (same file)",
+                                                  },
+                                                  intCalls,
+                                                  " int"
+                                                ),
+                                                React.createElement(
+                                                  "span",
+                                                  {
+                                                    className:
+                                                      "badge " +
+                                                      (extCalls > 10
+                                                        ? "badge-danger"
+                                                        : extCalls > 0
+                                                        ? "badge-warning"
+                                                        : "badge-default"),
+                                                    title:
+                                                      "External calls (other files)",
+                                                  },
+                                                  extCalls,
+                                                  " ext"
+                                                )
+                                              )
+                                            ),
+                                            isExpanded &&
+                                              React.createElement(
+                                                React.Fragment,
+                                                null,
+                                                fn.code &&
+                                                  React.createElement(
+                                                    "div",
+                                                    { className: "fn-code" },
+                                                    fn.code
+                                                  ),
+                                                st &&
+                                                  st.callers &&
+                                                  st.callers.length > 0 &&
+                                                  React.createElement(
+                                                    "div",
+                                                    { className: "fn-callers" },
+                                                    React.createElement(
+                                                      "div",
+                                                      {
+                                                        className:
+                                                          "fn-callers-title",
+                                                      },
+                                                      "External callers:"
+                                                    ),
+                                                    st.callers
+                                                      .slice(0, 8)
+                                                      .map(function (c, i) {
+                                                        return React.createElement(
+                                                          "div",
+                                                          {
+                                                            key: i,
+                                                            className:
+                                                              "fn-caller",
+                                                            onClick:
+                                                              function () {
+                                                                selectFile(
+                                                                  c.file
+                                                                );
+                                                              },
+                                                          },
+                                                          React.createElement(
+                                                            Icon,
+                                                            {
+                                                              name: "file",
+                                                              size: "s",
+                                                            }
+                                                          ),
+                                                          React.createElement(
+                                                            "span",
+                                                            null,
+                                                            c.name
+                                                          ),
+                                                          React.createElement(
+                                                            "span",
+                                                            {
+                                                              style: {
+                                                                marginLeft:
+                                                                  "auto",
+                                                                color:
+                                                                  "var(--t3)",
+                                                              },
+                                                            },
+                                                            c.count,
+                                                            "×"
+                                                          )
+                                                        );
+                                                      }),
+                                                    st.callers.length > 8 &&
+                                                      React.createElement(
+                                                        "div",
+                                                        {
+                                                          style: {
+                                                            fontSize: 9,
+                                                            color: "var(--t3)",
+                                                            padding: "4px 6px",
+                                                          },
+                                                        },
+                                                        "+",
+                                                        st.callers.length - 8,
+                                                        " more"
+                                                      )
+                                                  ),
+                                                intCalls === 0 &&
+                                                  extCalls === 0 &&
+                                                  React.createElement(
+                                                    "div",
+                                                    {
+                                                      style: {
+                                                        fontSize: 9,
+                                                        color: "var(--orange)",
+                                                        padding: 8,
+                                                        textAlign: "center",
+                                                        background:
+                                                          "rgba(255,159,67,0.1)",
+                                                        borderRadius: 4,
+                                                      },
+                                                    },
+                                                    React.createElement(Icon, {
+                                                      name: "warning",
+                                                      size: "s",
+                                                    }),
+                                                    " This function is never called"
+                                                  )
+                                              )
+                                          );
+                                        })
+                                  )
+                              )
+                            )
+                          : React.createElement(
+                              React.Fragment,
+                              null,
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    marginBottom: 12,
+                                  },
+                                },
+                                React.createElement(Icon, {
+                                  name: "search",
+                                  size: "m",
+                                }),
+                                " Architecture Issues (",
+                                data.issues.length,
+                                ")"
+                              ),
+                              data.issues.length === 0
+                                ? React.createElement(
+                                    "div",
+                                    {
+                                      style: {
+                                        textAlign: "center",
+                                        padding: 20,
+                                      },
+                                    },
+                                    React.createElement(Icon, {
+                                      name: "spark",
+                                      size: "xxl",
+                                      className: "empty-icon",
+                                    }),
+                                    React.createElement(
+                                      "div",
+                                      { style: { color: "var(--green)" } },
+                                      "No issues detected!"
+                                    )
+                                  )
+                                : data.issues.map(function (issue, i) {
+                                    return React.createElement(
+                                      "div",
+                                      {
+                                        key: i,
+                                        className:
+                                          "security-item " +
+                                          (issue.type === "critical"
+                                            ? "high"
+                                            : "medium"),
+                                        style: { cursor: "pointer" },
+                                        onClick: function () {
+                                          setDrillDown({
+                                            type: "issue",
+                                            data: issue,
+                                          });
+                                        },
+                                      },
+                                      React.createElement(
+                                        "div",
+                                        { className: "security-header" },
+                                        React.createElement(StatusDot, {
+                                          color:
+                                            issue.type === "critical"
+                                              ? "var(--red)"
+                                              : "var(--orange)",
+                                        }),
+                                        React.createElement(
+                                          "span",
+                                          { className: "security-title" },
+                                          issue.title
+                                        )
+                                      ),
+                                      React.createElement(
+                                        "div",
+                                        { className: "security-desc" },
+                                        issue.desc
+                                      ),
+                                      React.createElement(
+                                        "div",
+                                        {
+                                          style: {
+                                            fontSize: 9,
+                                            color: "var(--acc)",
+                                            marginTop: 6,
+                                          },
+                                        },
+                                        "Click for details (",
+                                        issue.items ? issue.items.length : 0,
+                                        " items) →"
+                                      )
+                                    );
+                                  })
+                            )),
+                      rightTab === "patterns" &&
+                        React.createElement(
+                          React.Fragment,
+                          null,
+                          React.createElement(
+                            "div",
+                            {
+                              style: {
+                                fontSize: 12,
+                                fontWeight: 600,
+                                marginBottom: 12,
+                              },
+                            },
+                            React.createElement(Icon, {
+                              name: "puzzle",
+                              size: "m",
+                            }),
+                            " Design Patterns & Anti-Patterns"
+                          ),
+                          data.patterns.length === 0
+                            ? React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    textAlign: "center",
+                                    padding: 20,
+                                    color: "var(--t3)",
+                                  },
+                                },
+                                React.createElement(Icon, {
+                                  name: "puzzle",
+                                  size: "xxl",
+                                  className: "empty-icon",
+                                }),
+                                React.createElement(
+                                  "div",
+                                  null,
+                                  "No patterns detected"
+                                ),
+                                React.createElement(
+                                  "div",
+                                  { style: { fontSize: 10, marginTop: 8 } },
+                                  "Patterns are detected based on code structure"
+                                )
+                              )
+                            : data.patterns.map(function (p, i) {
+                                return React.createElement(
+                                  "div",
+                                  {
+                                    key: i,
+                                    className:
+                                      "pattern-item" +
+                                      (p.isAnti ? " anti" : ""),
+                                    style: { cursor: "pointer" },
+                                    onClick: function () {
+                                      setDrillDown({
+                                        type: "pattern",
+                                        data: p,
+                                      });
+                                    },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    { className: "pattern-header" },
+                                    React.createElement(Icon, {
+                                      name: p.icon,
+                                      size: "m",
+                                      className: "pattern-icon",
+                                    }),
+                                    React.createElement(
+                                      "span",
+                                      { className: "pattern-name" },
+                                      p.name
+                                    ),
+                                    p.isAnti &&
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className: "badge badge-danger",
+                                          style: { marginLeft: 8 },
+                                        },
+                                        "Anti-pattern"
+                                      )
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    { className: "pattern-desc" },
+                                    p.desc
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--acc)",
+                                        marginTop: 6,
+                                      },
+                                    },
+                                    "Click for details (",
+                                    p.files.length,
+                                    " files) →"
+                                  )
+                                );
+                              })
+                        ),
+                      rightTab === "security" &&
+                        React.createElement(
+                          React.Fragment,
+                          null,
+                          React.createElement(
+                            "div",
+                            {
+                              style: {
+                                fontSize: 12,
+                                fontWeight: 600,
+                                marginBottom: 12,
+                              },
+                            },
+                            React.createElement(Icon, {
+                              name: "security",
+                              size: "m",
+                            }),
+                            " Security Analysis"
+                          ),
+                          data.securityIssues.length === 0
+                            ? React.createElement(
+                                "div",
+                                { style: { textAlign: "center", padding: 20 } },
+                                React.createElement(Icon, {
+                                  name: "security",
+                                  size: "xxl",
+                                  className: "empty-icon",
+                                }),
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      color: "var(--green)",
+                                      fontWeight: 600,
+                                    },
+                                  },
+                                  "No security issues found!"
+                                ),
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      fontSize: 10,
+                                      color: "var(--t3)",
+                                      marginTop: 8,
+                                    },
+                                  },
+                                  "Your code passed all security checks"
+                                )
+                              )
+                            : React.createElement(
+                                React.Fragment,
+                                null,
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      display: "flex",
+                                      gap: 8,
+                                      marginBottom: 12,
+                                    },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    { className: "badge badge-danger" },
+                                    data.securityIssues.filter(function (i) {
+                                      return i.severity === "high";
+                                    }).length,
+                                    " High"
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    { className: "badge badge-warning" },
+                                    data.securityIssues.filter(function (i) {
+                                      return i.severity === "medium";
+                                    }).length,
+                                    " Medium"
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    { className: "badge badge-info" },
+                                    data.securityIssues.filter(function (i) {
+                                      return i.severity === "low";
+                                    }).length,
+                                    " Low"
+                                  )
+                                ),
+                                data.securityIssues.map(function (issue, i) {
+                                  return React.createElement(
+                                    "div",
+                                    {
+                                      key: i,
+                                      className:
+                                        "security-item " + issue.severity,
+                                      style: { cursor: "pointer" },
+                                      onClick: function () {
+                                        setDrillDown({
+                                          type: "security",
+                                          data: issue,
+                                        });
+                                      },
+                                    },
+                                    React.createElement(
+                                      "div",
+                                      { className: "security-header" },
+                                      React.createElement(StatusDot, {
+                                        color: getSeverityColor(issue.severity),
+                                      }),
+                                      React.createElement(
+                                        "span",
+                                        { className: "security-title" },
+                                        issue.title
+                                      )
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      { className: "security-desc" },
+                                      issue.desc
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 9,
+                                          color: "var(--acc)",
+                                          marginTop: 6,
+                                        },
+                                      },
+                                      "Click for details →"
+                                    ),
+                                    issue.code &&
+                                      React.createElement(
+                                        "div",
+                                        { className: "security-code" },
+                                        issue.code
+                                      )
+                                  );
+                                })
+                              )
+                        ),
+                      rightTab === "suggestions" &&
+                        React.createElement(
+                          React.Fragment,
+                          null,
+                          React.createElement(
+                            "div",
+                            {
+                              style: {
+                                fontSize: 12,
+                                fontWeight: 600,
+                                marginBottom: 12,
+                              },
+                            },
+                            React.createElement(Icon, {
+                              name: "action",
+                              size: "m",
+                            }),
+                            " Actionable Suggestions"
+                          ),
+                          !data.suggestions || data.suggestions.length === 0
+                            ? React.createElement(
+                                "div",
+                                { style: { textAlign: "center", padding: 20 } },
+                                React.createElement(Icon, {
+                                  name: "spark",
+                                  size: "xxl",
+                                  className: "empty-icon",
+                                }),
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      color: "var(--green)",
+                                      fontWeight: 600,
+                                    },
+                                  },
+                                  "No issues to address!"
+                                ),
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      fontSize: 10,
+                                      color: "var(--t3)",
+                                      marginTop: 8,
+                                    },
+                                  },
+                                  "Your codebase looks healthy"
+                                )
+                              )
