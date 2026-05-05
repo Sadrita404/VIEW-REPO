@@ -16760,3 +16760,592 @@ var dataObj = await runAnalysisData({
                       )
                   )
             ),
+             React.createElement(
+              "div",
+              {
+                className:
+                  "right-panel" +
+                  (isMobile && mobilePanel === "details"
+                    ? " mobile-visible"
+                    : ""),
+                style: { width: isMobile ? "100vw" : rightPanelWidth },
+              },
+              isMobile &&
+                React.createElement(
+                  "div",
+                  { className: "mobile-panel-header" },
+                  React.createElement(
+                    "div",
+                    { className: "mobile-panel-meta" },
+                    React.createElement(
+                      "div",
+                      { className: "mobile-panel-title" },
+                      selected ? selected.name : "Insights"
+                    ),
+                    React.createElement(
+                      "div",
+                      { className: "mobile-panel-subtitle" },
+                      selected
+                        ? selected.path
+                        : data
+                        ? "Browse issues, patterns, and security findings"
+                        : "Select a file to inspect it"
+                    )
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "mobile-panel-close",
+                      type: "button",
+                      "aria-label": "Close details panel",
+                      onClick: function () {
+                        setMobilePanel(null);
+                      },
+                    },
+                    React.createElement(Icon, { name: "close", size: "m" })
+                  )
+                ),
+              React.createElement("div", {
+                className: "resize-handle",
+                onMouseDown: function (e) {
+                  e.preventDefault();
+                  var startX = e.clientX,
+                    startW = rightPanelWidth;
+                  function onMove(e) {
+                    setRightPanelWidth(
+                      Math.max(
+                        280,
+                        Math.min(500, startW - (e.clientX - startX))
+                      )
+                    );
+                  }
+                  function onUp() {
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                  }
+                  document.addEventListener("mousemove", onMove);
+                  document.addEventListener("mouseup", onUp);
+                },
+              }),
+              data
+                ? React.createElement(
+                    React.Fragment,
+                    null,
+                    React.createElement(
+                      "div",
+                      { className: "panel-tabs" },
+                      React.createElement(
+                        "button",
+                        {
+                          className:
+                            "panel-tab" +
+                            (rightTab === "details" ? " active" : ""),
+                          onClick: function () {
+                            setRightTab("details");
+                            setDrillDown(null);
+                          },
+                        },
+                        selected
+                          ? iconLabel("file", "FILE")
+                          : iconLabel("search", "ISSUES")
+                      ),
+                      React.createElement(
+                        "button",
+                        {
+                          className:
+                            "panel-tab" +
+                            (rightTab === "patterns" ? " active" : ""),
+                          onClick: function () {
+                            setRightTab("patterns");
+                            setDrillDown(null);
+                          },
+                        },
+                        iconLabel("puzzle", "PATTERNS"),
+                        " ",
+                        React.createElement(
+                          "span",
+                          { className: "badge badge-default" },
+                          data.patterns.length
+                        )
+                      ),
+                      React.createElement(
+                        "button",
+                        {
+                          className:
+                            "panel-tab" +
+                            (rightTab === "security" ? " active" : ""),
+                          onClick: function () {
+                            setRightTab("security");
+                            setDrillDown(null);
+                          },
+                        },
+                        iconLabel("security", "SECURITY"),
+                        data.stats.security > 0 &&
+                          React.createElement(
+                            "span",
+                            {
+                              className: "view-mode-badge",
+                              style: { marginLeft: 4 },
+                            },
+                            data.stats.security
+                          )
+                      ),
+                      React.createElement(
+                        "button",
+                        {
+                          className:
+                            "panel-tab" +
+                            (rightTab === "suggestions" ? " active" : ""),
+                          onClick: function () {
+                            setRightTab("suggestions");
+                            setDrillDown(null);
+                          },
+                        },
+                        iconLabel("action", "ACTIONS"),
+                        data.suggestions &&
+                          data.suggestions.length > 0 &&
+                          React.createElement(
+                            "span",
+                            {
+                              className: "view-mode-badge",
+                              style: { marginLeft: 4 },
+                            },
+                            data.suggestions.length
+                          )
+                      )
+                    ),
+                    React.createElement(
+                      "div",
+                      { className: "panel-content" },
+                      rightTab === "details" &&
+                        (selected
+                          ? React.createElement(
+                              React.Fragment,
+                              null,
+                              React.createElement(
+                                "button",
+                                {
+                                  className: "top-btn",
+                                  style: { width: "100%", marginBottom: 12 },
+                                  onClick: function () {
+                                    setSelected(null);
+                                    setBlastRadius(null);
+                                    if (nodesRef.current) {
+                                      nodesRef.current
+                                        .selectAll(".nc")
+                                        .transition()
+                                        .duration(200)
+                                        .attr("opacity", 1)
+                                        .attr("fill", getNodeColor);
+                                    }
+                                    if (linksRef.current) {
+                                      linksRef.current
+                                        .transition()
+                                        .duration(200)
+                                        .attr("stroke-opacity", 0.4)
+                                        .attr(
+                                          "stroke",
+                                          theme === "light" ? "#ccc" : "#333"
+                                        );
+                                    }
+                                  },
+                                },
+                                "← Back to Issues"
+                              ),
+                              React.createElement(
+                                "div",
+                                {
+                                  className: "panel-header",
+                                  style: {
+                                    margin: "0 -12px 12px",
+                                    padding: 12,
+                                  },
+                                },
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "flex-start",
+                                    },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    null,
+                                    React.createElement(
+                                      "div",
+                                      { className: "panel-title" },
+                                      React.createElement(Icon, {
+                                        name: "file",
+                                        size: "m",
+                                      }),
+                                      " ",
+                                      selected.name
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      { className: "panel-subtitle" },
+                                      selected.folder || "root",
+                                      " • ",
+                                      selected.layer,
+                                      " • ",
+                                      selected.lines,
+                                      " lines",
+                                      selected.complexity &&
+                                        selected.complexity.score > 0
+                                        ? " • Complexity: " +
+                                            selected.complexity.score
+                                        : ""
+                                    )
+                                  ),
+                                  React.createElement(
+                                    "button",
+                                    {
+                                      className: "view-file-btn",
+                                      onClick: function () {
+                                        openFilePreview(selected.path);
+                                      },
+                                    },
+                                    iconLabel("eye", "View Source")
+                                  )
+                                )
+                              ),
+                              blastRadius &&
+                                React.createElement(
+                                  "div",
+                                  {
+                                    className: "card",
+                                    style: { marginBottom: 12 },
+                                  },
+                                  React.createElement(
+                                    "div",
+                                    {
+                                      className: "card-header",
+                                      onClick: function () {
+                                        toggleCard("blast");
+                                      },
+                                    },
+                                    React.createElement(
+                                      "div",
+                                      { className: "card-title" },
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className:
+                                            "card-toggle" +
+                                            (expandedCards.has("blast")
+                                              ? " open"
+                                              : ""),
+                                        },
+                                        "▶"
+                                      ),
+                                      React.createElement(Icon, {
+                                        name: "impact",
+                                        size: "s",
+                                      }),
+                                      " Impact Analysis"
+                                    ),
+                                    React.createElement(
+                                      "span",
+                                      {
+                                        className:
+                                          "badge badge-" +
+                                          (blastRadius.level === "low"
+                                            ? "success"
+                                            : blastRadius.level === "medium"
+                                            ? "warning"
+                                            : "danger"),
+                                      },
+                                      blastRadius.level.toUpperCase()
+                                    )
+                                  ),
+                                  expandedCards.has("blast") &&
+                                    React.createElement(
+                                      "div",
+                                      { className: "card-body" },
+                                      React.createElement(
+                                        "div",
+                                        {
+                                          style: {
+                                            display: "grid",
+                                            gridTemplateColumns: "1fr 1fr",
+                                            gap: 8,
+                                            marginBottom: 10,
+                                          },
+                                        },
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              background: "var(--bg0)",
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              textAlign: "center",
+                                            },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 16,
+                                                fontWeight: 600,
+                                                color: "var(--acc)",
+                                              },
+                                            },
+                                            blastRadius.count
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                color: "var(--t3)",
+                                              },
+                                            },
+                                            "Direct Dependents"
+                                          )
+                                        ),
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              background: "var(--bg0)",
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              textAlign: "center",
+                                            },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 16,
+                                                fontWeight: 600,
+                                                color: "var(--purple)",
+                                              },
+                                            },
+                                            blastRadius.transitiveCount || 0
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                color: "var(--t3)",
+                                              },
+                                            },
+                                            "Transitive"
+                                          )
+                                        ),
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              background: "var(--bg0)",
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              textAlign: "center",
+                                            },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 16,
+                                                fontWeight: 600,
+                                                color: "var(--green)",
+                                              },
+                                            },
+                                            blastRadius.fnsUsed || 0
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                color: "var(--t3)",
+                                              },
+                                            },
+                                            "Fns Exported"
+                                          )
+                                        ),
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              background: "var(--bg0)",
+                                              padding: 8,
+                                              borderRadius: 6,
+                                              textAlign: "center",
+                                            },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 16,
+                                                fontWeight: 600,
+                                                color: "var(--orange)",
+                                              },
+                                            },
+                                            (blastRadius.dependencies || [])
+                                              .length
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                color: "var(--t3)",
+                                              },
+                                            },
+                                            "Dependencies"
+                                          )
+                                        )
+                                      ),
+                                      (blastRadius.count > 0 ||
+                                        blastRadius.fnsUsed > 0) &&
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            style: {
+                                              fontSize: 9,
+                                              color: "var(--t3)",
+                                              marginBottom: 8,
+                                              padding: "6px 8px",
+                                              background: "var(--bg0)",
+                                              borderRadius: 4,
+                                            },
+                                          },
+                                          blastRadius.count > 0
+                                            ? blastRadius.count +
+                                                " file" +
+                                                (blastRadius.count > 1
+                                                  ? "s"
+                                                  : "") +
+                                                " directly depend on this file"
+                                            : "",
+                                          blastRadius.count > 0 &&
+                                            blastRadius.fnsUsed > 0
+                                            ? " • "
+                                            : "",
+                                          blastRadius.fnsUsed > 0
+                                            ? blastRadius.fnsUsed +
+                                                " function" +
+                                                (blastRadius.fnsUsed > 1
+                                                  ? "s"
+                                                  : "") +
+                                                " used " +
+                                                blastRadius.totalCalls +
+                                                " times"
+                                            : ""
+                                        ),
+                                      blastRadius.affected.length > 0 &&
+                                        React.createElement(
+                                          "div",
+                                          { className: "blast-detail" },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                fontWeight: 600,
+                                                marginBottom: 6,
+                                              },
+                                            },
+                                            "Files that import from this:"
+                                          ),
+                                          blastRadius.affected
+                                            .slice(0, 8)
+                                            .map(function (path) {
+                                              return React.createElement(
+                                                "div",
+                                                {
+                                                  key: path,
+                                                  className: "blast-file",
+                                                  onClick: function () {
+                                                    selectFile(path);
+                                                  },
+                                                },
+                                                React.createElement(Icon, {
+                                                  name: "file",
+                                                  size: "s",
+                                                }),
+                                                " ",
+                                                path.split("/").pop()
+                                              );
+                                            }),
+                                          blastRadius.affected.length > 8 &&
+                                            React.createElement(
+                                              "div",
+                                              {
+                                                style: {
+                                                  fontSize: 9,
+                                                  color: "var(--t3)",
+                                                  marginTop: 4,
+                                                },
+                                              },
+                                              "+",
+                                              blastRadius.affected.length - 8,
+                                              " more"
+                                            )
+                                        ),
+                                      (blastRadius.dependencies || []).length >
+                                        0 &&
+                                        React.createElement(
+                                          "div",
+                                          {
+                                            className: "blast-detail",
+                                            style: { marginTop: 8 },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                fontWeight: 600,
+                                                marginBottom: 6,
+                                                color: "var(--orange)",
+                                              },
+                                            },
+                                            "Dependencies (risk if these change):"
+                                          ),
+                                          blastRadius.dependencies
+                                            .slice(0, 5)
+                                            .map(function (path) {
+                                              return React.createElement(
+                                                "div",
+                                                {
+                                                  key: path,
+                                                  className: "blast-file",
+                                                  onClick: function () {
+                                                    selectFile(path);
+                                                  },
+                                                },
+                                                React.createElement(Icon, {
+                                                  name: "file",
+                                                  size: "s",
+                                                }),
+                                                " ",
+                                                path.split("/").pop()
+                                              );
+                                            }),
+                                          blastRadius.dependencies.length > 5 &&
+                                            React.createElement(
+                                              "div",
+                                              {
+                                                style: {
+                                                  fontSize: 9,
+                                                  color: "var(--t3)",
+                                                  marginTop: 4,
+                                                },
+                                              },
+                                              "+",
+                                              blastRadius.dependencies.length -
+                                                5,
+                                              " more"
+                                            )
+                                        )
+                                    )
+                                ),
