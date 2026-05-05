@@ -19313,7 +19313,16 @@
                                   (prData.deletions || 0)
                               )
                             ),
-                            
+                            React.createElement(
+                              "div",
+                              { className: "pr-metric-row" },
+                              React.createElement(
+                                "span",
+                                { className: "pr-metric-label" },
+                                "Net Change"
+                              ),
+                              React.createElement(
+                                "span",
                                 {
                                   className: "pr-metric-value",
                                   style: {
@@ -19415,4 +19424,276 @@
                               )
                             )
                         ),
-                        
+                         chains.length > 0 &&
+                          React.createElement(
+                            "div",
+                            {
+                              className: "pr-impact-card",
+                              style: { marginTop: 16 },
+                            },
+                            React.createElement(
+                              "div",
+                              { className: "pr-impact-card-title" },
+                              iconLabel("link", "Dependency Chains")
+                            ),
+                            React.createElement(
+                              "div",
+                              {
+                                style: {
+                                  fontSize: 10,
+                                  color: "var(--t3)",
+                                  marginBottom: 12,
+                                },
+                              },
+                              "Files that import modified files (downstream impact)"
+                            ),
+                            chains.map(function (chain, i) {
+                              return React.createElement(
+                                "div",
+                                {
+                                  key: i,
+                                  className: "pr-dependency-chain",
+                                  style: { marginBottom: 8 },
+                                },
+                                chain.map(function (node, j) {
+                                  return React.createElement(
+                                    React.Fragment,
+                                    { key: j },
+                                    React.createElement(
+                                      "span",
+                                      {
+                                        className:
+                                          "pr-chain-node" +
+                                          (j === 0 ? " changed" : ""),
+                                      },
+                                      node
+                                    ),
+                                    j < chain.length - 1 &&
+                                      React.createElement(
+                                        "span",
+                                        { className: "pr-chain-arrow" },
+                                        "→"
+                                      )
+                                  );
+                                })
+                              );
+                            })
+                          ),
+                        risk.hotspots.length > 0 &&
+                          React.createElement(
+                            "div",
+                            {
+                              className: "pr-impact-card",
+                              style: { marginTop: 16 },
+                            },
+                            React.createElement(
+                              "div",
+                              { className: "pr-impact-card-title" },
+                              iconLabel("activity", "Hotspots")
+                            ),
+                            React.createElement(
+                              "div",
+                              {
+                                style: {
+                                  fontSize: 10,
+                                  color: "var(--t3)",
+                                  marginBottom: 12,
+                                },
+                              },
+                              "Files with highest blast radius"
+                            ),
+                            risk.hotspots.map(function (h, i) {
+                              var maxBlast =
+                                Math.max.apply(
+                                  null,
+                                  risk.hotspots.map(function (x) {
+                                    return x.blast;
+                                  })
+                                ) || 1;
+                              return React.createElement(
+                                "div",
+                                { key: i, className: "pr-hotspot" },
+                                React.createElement(
+                                  "span",
+                                  {
+                                    style: {
+                                      fontSize: 10,
+                                      color: "var(--t1)",
+                                      minWidth: 120,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    },
+                                  },
+                                  h.file.split("/").pop()
+                                ),
+                                React.createElement(
+                                  "div",
+                                  { className: "pr-hotspot-bar" },
+                                  React.createElement("div", {
+                                    className: "pr-hotspot-fill",
+                                    style: {
+                                      width: (h.blast / maxBlast) * 100 + "%",
+                                      background:
+                                        "linear-gradient(90deg, var(--orange), var(--red))",
+                                    },
+                                  })
+                                ),
+                                React.createElement(
+                                  "span",
+                                  {
+                                    style: {
+                                      fontSize: 9,
+                                      color: "var(--t3)",
+                                      minWidth: 50,
+                                      textAlign: "right",
+                                    },
+                                  },
+                                  h.blast,
+                                  " files"
+                                )
+                              );
+                            })
+                          ),
+                        React.createElement(
+                          "div",
+                          {
+                            className: "pr-impact-card",
+                            style: { marginTop: 16 },
+                          },
+                          React.createElement(
+                            "div",
+                            { className: "pr-impact-card-title" },
+                            iconLabel("folder", "Changed Files")
+                          ),
+                          React.createElement(
+                            "div",
+                            { className: "pr-files-list" },
+                            prData.files &&
+                              prData.files.slice(0, 20).map(function (f, i) {
+                                var existing =
+                                  data &&
+                                  data.files.find(function (df) {
+                                    return df.path === f.filename;
+                                  });
+                                var blast = existing
+                                  ? calcBlast(
+                                      f.filename,
+                                      data.connections,
+                                      data.files
+                                    )
+                                  : null;
+                                var statusColor =
+                                  f.status === "added"
+                                    ? "var(--green)"
+                                    : f.status === "removed"
+                                    ? "var(--red)"
+                                    : "var(--blue)";
+                                return React.createElement(
+                                  "div",
+                                  { key: i, className: "pr-file-row" },
+                                  React.createElement("div", {
+                                    className: "pr-file-status",
+                                    style: { background: statusColor },
+                                  }),
+                                  React.createElement(
+                                    "div",
+                                    { className: "pr-file-info" },
+                                    React.createElement(
+                                      "div",
+                                      { className: "pr-file-path" },
+                                      f.filename.split("/").pop()
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      { className: "pr-file-folder" },
+                                      f.filename.includes("/")
+                                        ? f.filename.substring(
+                                            0,
+                                            f.filename.lastIndexOf("/")
+                                          )
+                                        : "root"
+                                    )
+                                  ),
+                                  React.createElement(
+                                    "div",
+                                    { className: "pr-file-badges" },
+                                    f.additions > 0 &&
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className: "pr-mini-badge",
+                                          style: {
+                                            background: "rgba(34,197,94,0.2)",
+                                            color: "var(--green)",
+                                          },
+                                        },
+                                        "+",
+                                        f.additions
+                                      ),
+                                    f.deletions > 0 &&
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className: "pr-mini-badge",
+                                          style: {
+                                            background: "rgba(255,95,95,0.2)",
+                                            color: "var(--red)",
+                                          },
+                                        },
+                                        "-",
+                                        f.deletions
+                                      ),
+                                    blast &&
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className: "pr-mini-badge",
+                                          style: {
+                                            background:
+                                              blast.level === "low"
+                                                ? "rgba(34,197,94,0.2)"
+                                                : blast.level === "medium"
+                                                ? "rgba(255,159,67,0.2)"
+                                                : "rgba(255,95,95,0.2)",
+                                            color:
+                                              blast.level === "low"
+                                                ? "var(--green)"
+                                                : blast.level === "medium"
+                                                ? "var(--orange)"
+                                                : "var(--red)",
+                                          },
+                                        },
+                                        React.createElement(Icon, {
+                                          name: "impact",
+                                          size: "s",
+                                        }),
+                                        " ",
+                                        blast.count
+                                      )
+                                  )
+                                );
+                              }),
+                            prData.files &&
+                              prData.files.length > 20 &&
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    textAlign: "center",
+                                    padding: 8,
+                                    fontSize: 10,
+                                    color: "var(--t3)",
+                                  },
+                                },
+                                "+",
+                                prData.files.length - 20,
+                                " more files"
+                              )
+                          )
+                        )
+                      );
+                    })()
+                )
+              )
+            ),
