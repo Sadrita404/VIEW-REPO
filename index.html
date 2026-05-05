@@ -18683,3 +18683,463 @@
                     )
                   )
             )
+            ),
+          showExport &&
+            React.createElement(
+              "div",
+              {
+                className: "modal-overlay",
+                onClick: function () {
+                  setShowExport(false);
+                },
+              },
+              React.createElement(
+                "div",
+                {
+                  className: "modal",
+                  onClick: function (e) {
+                    e.stopPropagation();
+                  },
+                  style: { maxWidth: 480 },
+                },
+                React.createElement(
+                  "div",
+                  { className: "modal-header" },
+                  React.createElement(
+                    "div",
+                    { className: "modal-title" },
+                    iconLabel("export", "Export", "m")
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "modal-close",
+                      onClick: function () {
+                        setShowExport(false);
+                      },
+                    },
+                    "×"
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "modal-body" },
+                  React.createElement(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: "var(--t3)",
+                        textTransform: "uppercase",
+                        marginBottom: 8,
+                      },
+                    },
+                    "Visualization"
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "export-options" },
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          exportSVG();
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, { name: "image", size: "xl" })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "SVG Image"
+                      )
+                    ),
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          copyLink();
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, { name: "link", size: "xl" })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "Share Link"
+                      )
+                    )
+                  ),
+                  React.createElement(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: "var(--t3)",
+                        textTransform: "uppercase",
+                        marginBottom: 8,
+                        marginTop: 16,
+                      },
+                    },
+                    "Analysis Report"
+                  ),
+                  React.createElement(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 9,
+                        color: "var(--t2)",
+                        marginBottom: 10,
+                      },
+                    },
+                    "Complete analysis with files, functions, patterns, security issues, and dependencies"
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "export-options" },
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          generateReport("json");
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, { name: "code", size: "xl" })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "JSON Report"
+                      )
+                    ),
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          generateReport("md");
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, { name: "note", size: "xl" })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "Markdown"
+                      )
+                    ),
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          generateReport("txt");
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, { name: "file", size: "xl" })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "Plain Text"
+                      )
+                    )
+                  ),
+                  React.createElement(
+                    "div",
+                    {
+                      style: {
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: "var(--t3)",
+                        textTransform: "uppercase",
+                        marginBottom: 8,
+                        marginTop: 16,
+                      },
+                    },
+                    "Raw Data"
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "export-options" },
+                    React.createElement(
+                      "div",
+                      {
+                        className: "export-option",
+                        onClick: function () {
+                          exportJSON();
+                          setShowExport(false);
+                        },
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "export-option-icon" },
+                        React.createElement(Icon, {
+                          name: "settings",
+                          size: "xl",
+                        })
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "export-option-label" },
+                        "Raw JSON"
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+          showExcludeModal &&
+            React.createElement(
+              "div",
+              { className: "modal-overlay", onClick: closeExcludeModal },
+              React.createElement(
+                "div",
+                {
+                  className: "modal",
+                  onClick: function (e) {
+                    e.stopPropagation();
+                  },
+                  style: { maxWidth: 540 },
+                },
+                React.createElement(
+                  "div",
+                  { className: "modal-header" },
+                  React.createElement(
+                    "div",
+                    { className: "modal-title" },
+                    iconLabel("ban", "Exclude Patterns", "m")
+                  ),
+                  React.createElement(
+                    "div",
+                    {
+                      style: { display: "flex", alignItems: "center", gap: 12 },
+                    },
+                    React.createElement(
+                      "div",
+                      { className: "exclude-count" },
+                      parseExcludePatterns(excludePatternDraft).length,
+                      " custom"
+                    ),
+                    React.createElement(
+                      "button",
+                      { className: "modal-close", onClick: closeExcludeModal },
+                      "×"
+                    )
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "modal-body" },
+                  React.createElement(
+                    "div",
+                    { className: "exclude-note" },
+                    "Common build and cache folders are already excluded by default. Add project-specific patterns here before scanning a repo or opening a local folder."
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "exclude-note" },
+                    "Supports exact names like ",
+                    React.createElement("code", null, ".git"),
+                    " or ",
+                    React.createElement("code", null, "attachments"),
+                    ", file globs like ",
+                    React.createElement("code", null, "*.png"),
+                    ", and path globs like ",
+                    React.createElement("code", null, "uploads/**"),
+                    " or ",
+                    React.createElement("code", null, "**/cache/**"),
+                    "."
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "form-group" },
+                    React.createElement(
+                      "label",
+                      { className: "form-label" },
+                      "Always Excluded"
+                    ),
+                    React.createElement(
+                      "div",
+                      { className: "exclude-chip-list" },
+                      DEFAULT_EXCLUDE_CHIPS.map(function (pattern) {
+                        return React.createElement(
+                          "div",
+                          { key: pattern, className: "exclude-chip" },
+                          pattern
+                        );
+                      })
+                    )
+                  ),
+                  React.createElement(
+                    "div",
+                    { className: "form-group" },
+                    React.createElement(
+                      "label",
+                      { className: "form-label" },
+                      "Custom Patterns"
+                    ),
+                    React.createElement("textarea", {
+                      className: "form-input exclude-textarea",
+                      "aria-label": "Custom exclude patterns",
+                      placeholder:
+                        "attachments\nuploads/**\n**/cache/**\n*.png\n*.log",
+                      value: excludePatternDraft,
+                      onChange: function (e) {
+                        setExcludePatternDraft(e.target.value);
+                      },
+                      rows: 8,
+                    }),
+                    React.createElement(
+                      "div",
+                      { className: "exclude-help" },
+                      "Use one pattern per line, or separate patterns with commas. Changes apply to the next analysis or refresh."
+                    )
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "modal-footer" },
+                  excludePatternDraft &&
+                    React.createElement(
+                      "button",
+                      {
+                        className: "top-btn",
+                        onClick: function () {
+                          setExcludePatternDraft("");
+                        },
+                        style: { marginRight: "auto" },
+                      },
+                      "Clear Custom"
+                    ),
+                  React.createElement(
+                    "button",
+                    { className: "top-btn", onClick: closeExcludeModal },
+                    "Cancel"
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "top-btn primary",
+                      onClick: saveExcludePatterns,
+                    },
+                    launchFolderAfterExcludeSave ? "Save & Continue" : "Save"
+                  )
+                )
+              )
+            ),
+          showPR &&
+            React.createElement(
+              "div",
+              {
+                className: "modal-overlay",
+                onClick: function () {
+                  setShowPR(false);
+                },
+              },
+              React.createElement(
+                "div",
+                {
+                  className: "modal pr-modal",
+                  onClick: function (e) {
+                    e.stopPropagation();
+                  },
+                },
+                React.createElement(
+                  "div",
+                  { className: "modal-header" },
+                  React.createElement(
+                    "div",
+                    { className: "modal-title" },
+                    iconLabel("chart", "PR Impact Analyzer", "m")
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "modal-close",
+                      onClick: function () {
+                        setShowPR(false);
+                      },
+                    },
+                    "×"
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  {
+                    className: "modal-body",
+                    style: { maxHeight: "75vh", overflowY: "auto" },
+                  },
+                  React.createElement(
+                    "div",
+                    { className: "form-group" },
+                    React.createElement(
+                      "label",
+                      { className: "form-label" },
+                      "Pull Request URL"
+                    ),
+                    React.createElement("input", {
+                      className: "form-input",
+                      "aria-label": "Pull Request URL",
+                      placeholder: "https://github.com/owner/repo/pull/123",
+                      value: prUrl,
+                      onChange: function (e) {
+                        setPrUrl(e.target.value);
+                      },
+                      onKeyDown: function (e) {
+                        if (e.key === "Enter") analyzePR();
+                      },
+                    })
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "top-btn primary",
+                      "aria-label": "Analyze Pull Request",
+                      onClick: analyzePR,
+                      style: { marginBottom: 16, width: "100%" },
+                    },
+                    iconLabel("search", "Analyze PR Impact")
+                  ),
+                  prData &&
+                    (function () {
+                      var risk = calcPRRisk(prData, data);
+                      var reviewers = findSuggestedReviewers(prData, data);
+                      var testImpact = findTestImpact(prData, data);
+                      var chains = findDependencyChains(prData, data);
+                      var riskColor =
+                        risk.level === "critical"
+                          ? "var(--red)"
+                          : risk.level === "high"
+                          ? "var(--orange)"
+                          : risk.level === "medium"
+                          ? "var(--blue)"
+                          : "var(--green)";
+                      return React.createElement(
+                        React.Fragment,
+                        null,
