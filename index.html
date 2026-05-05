@@ -19,7 +19,7 @@
       property="og:description"
       content="Turn any GitHub repo into an interactive architecture map in seconds. Zero setup, privacy-first, runs in your browser." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="VIEW REPO-social.png" />
+    <meta property="og:image" content="ViewRepo-social.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
@@ -27,7 +27,7 @@
     <meta
       name="twitter:description"
       content="Turn any GitHub repo into an interactive architecture map in seconds. Zero setup, privacy-first." />
-    <meta name="twitter:image" content="VIEW REPO-social.png" />
+    <meta name="twitter:image" content="ViewRepo-social.png" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300ff9d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2 4 14h6l-1 8 9-12h-6l1-8z'/></svg>" />
@@ -4091,7 +4091,8 @@
               kind: "script",
             });
           }
-           if (options && options.includeHandlers && Parser.isHTML(filename)) {
+
+          if (options && options.includeHandlers && Parser.isHTML(filename)) {
             var tagRegex = /<([a-z][\w:-]*)([^<>]*?)>/gi;
             while ((match = tagRegex.exec(content))) {
               var tagStart = match.index;
@@ -4286,7 +4287,7 @@
           // Python-specific data layers
           if (l.includes("/migration")) return "data";
           if (l.includes("/fixtures/")) return "data";
-          // Python-specific data layers
+          // Task/Worker layer
           if (
             l.includes("/task") ||
             l.includes("/worker") ||
@@ -4337,7 +4338,6 @@
                 f.content.includes("return new"))
             );
           });
-
           if (factories.length)
             patterns.push({
               name: "Factory",
@@ -4431,7 +4431,6 @@
                 f.name.match(/UserForm/i))
             );
           });
-
           if (vbaUserForms.length)
             patterns.push({
               name: "UserForms",
@@ -4586,7 +4585,7 @@
                 f.content.match(/@receiver\s*\(/) ||
                 f.content.match(/\.connect\s*\(/))
             );
-             });
+          });
           if (pySignals.length)
             patterns.push({
               name: "Django Signals",
@@ -4662,7 +4661,7 @@
                 ),
               },
             });
-            // VBA-specific anti-patterns
+          // VBA-specific anti-patterns
           var vbaGodFiles = files.filter(function (f) {
             return f.isCode !== false && f.functions && f.functions.length > 20;
           });
@@ -4695,7 +4694,7 @@
         detectDuplicates: function (files, allFns) {
           var duplicates = [];
 
-           // Common function names that are expected to be duplicated across files
+          // Common function names that are expected to be duplicated across files
           // These are idiomatic patterns, not DRY violations
           var commonNames = new Set([
             // React lifecycle and handlers
@@ -4841,6 +4840,7 @@
             "onMount",
             "onDestroy",
           ]);
+
           // Group functions by name (excluding common names)
           var fnByName = Object.create(null);
           allFns.forEach(function (fn) {
@@ -4908,7 +4908,8 @@
               }
             }
           });
-           // Find similar code blocks (improved algorithm)
+
+          // Find similar code blocks (improved algorithm)
           // Use structural hash that captures the essence of the code
           var codeGroups = Object.create(null);
           allFns.forEach(function (fn) {
@@ -5021,6 +5022,7 @@
           }
           return prev[n];
         },
+
         // Create a structural fingerprint for code (for grouping similar code)
         codeFingerprint: function (code) {
           if (!code || code.length < 50) return null;
@@ -5131,7 +5133,7 @@
               })
               .join("\n");
           }
-           // Approximate cyclomatic complexity - supports JS, Python, and other languages
+          // Approximate cyclomatic complexity - supports JS, Python, and other languages
           var complexity = 1;
           // JS/C-style patterns
           var patterns = [
@@ -5216,6 +5218,23 @@
                 " files have too many functions. Split by responsibility.",
               action: "Group related functions and extract to separate modules",
               impact: "Improves code navigation and testing",
+            });
+          }
+          // Based on high coupling
+          var coupling = data.issues.filter(function (i) {
+            return i.title && i.title.includes("Coupled");
+          });
+          if (coupling.length) {
+            suggestions.push({
+              priority: "medium",
+              icon: "link",
+              title: "Reduce Coupling",
+              desc:
+                coupling.length +
+                " files are imported by many others. Consider if this is intentional.",
+              action:
+                "Review if these should be split or if importers should be consolidated",
+              impact: "Reduces blast radius of changes",
             });
           }
           // Based on duplicates
@@ -5339,7 +5358,6 @@
                 });
               }
             });
-
             if (
               scanContent.match(/query\s*\(\s*['"`][^'"`]*\s*\+/) ||
               scanContent.match(/execute\s*\(\s*['"`][^'"`]*\$\{/) ||
@@ -5510,46 +5528,7 @@
                 code: "",
               });
             }
-
             // Python-specific security checks
-            var isPyFile = f.name.endsWith(".py") || f.name.endsWith(".pyw");
-            if (isPyFile && scanContent) {
-              // eval() and exec() - arbitrary code execution
-              if (scanContent.match(/\beval\s*\(/)) {
-                var evalLine = lines.findIndex(function (l) {
-                  return l.match(/\beval\s*\(/);
-                });
-                issues.push({
-                  severity: "high",
-                  title: "Python eval()",
-                  file: f.name,
-                  path: f.path,
-                  line: evalLine >= 0 ? evalLine + 1 : undefined,
-                  desc: "eval() executes arbitrary Python code. Use ast.literal_eval() for safe parsing.",
-                  code:
-                    evalLine >= 0
-                      ? lines[evalLine].trim().substring(0, 80)
-                      : "",
-                });
-              }
-              if (scanContent.match(/\bexec\s*\(/)) {
-                var execLine = lines.findIndex(function (l) {
-                  return l.match(/\bexec\s*\(/);
-                });
-                issues.push({
-                  severity: "high",
-                  title: "Python exec()",
-                  file: f.name,
-                  path: f.path,
-                  line: execLine >= 0 ? execLine + 1 : undefined,
-                  desc: "exec() executes arbitrary Python code. This is almost always a security risk.",
-                  code:
-                    execLine >= 0
-                      ? lines[execLine].trim().substring(0, 80)
-                      : "",
-                });
-              }
-              // Python-specific security checks
             var isPyFile = f.name.endsWith(".py") || f.name.endsWith(".pyw");
             if (isPyFile && scanContent) {
               // eval() and exec() - arbitrary code execution
@@ -5881,8 +5860,7 @@
                   });
                 }
 
-
-                 // MethodDefinition in classes
+                // MethodDefinition in classes
                 if (node.type === "MethodDefinition" && node.key) {
                   var name = node.key.name || node.key.value;
                   if (name && name !== "constructor") {
@@ -6073,7 +6051,9 @@
                 classIndent = cIndent;
                 decorators = [];
                 return;
-                 // Reset class context when dedented
+              }
+
+              // Reset class context when dedented
               if (
                 currentClass !== null &&
                 indent <= classIndent &&
@@ -6575,7 +6555,7 @@
                 type: "function",
               });
 
-              // Ruby: def name
+            // Ruby: def name
             if ((m = line.match(/^\s*def\s+([a-zA-Z_][a-zA-Z0-9_?!]*)/)))
               addFn({
                 name: m[1],
@@ -8450,7 +8430,8 @@
         dataObj.suggestions = Parser.generateSuggestions(dataObj);
         return dataObj;
       }
-        // ---------------------------------------------------------------------------
+
+      // ---------------------------------------------------------------------------
       // Inline Worker Runtime
       // ---------------------------------------------------------------------------
 
@@ -8561,7 +8542,7 @@
       }
       // ===== VIEW REPO_ANALYZER_END =====
 
-       // ---------------------------------------------------------------------------
+      // ---------------------------------------------------------------------------
       // Visualization Helpers
       // ---------------------------------------------------------------------------
 
@@ -8667,7 +8648,8 @@
           centrality: centrality,
         };
       }
-function calcHealth(data) {
+
+      function calcHealth(data) {
         if (!data) return { score: 0, grade: "F" };
         var score = 100;
         var deadPct =
@@ -10110,7 +10092,8 @@ function calcHealth(data) {
         if (Parser.isJSON(filename)) return "note";
         return "code";
       }
-function getAccentBlockStyle(borderColor, tint, extra) {
+
+      function getAccentBlockStyle(borderColor, tint, extra) {
         return Object.assign(
           {
             background:
@@ -10322,6 +10305,50 @@ function getAccentBlockStyle(borderColor, tint, extra) {
         );
       }
 
+      function HealthRing(props) {
+        var score = props.score,
+          grade = props.grade;
+        var circ = 2 * Math.PI * 18;
+        var offset = circ - (score / 100) * circ;
+        var color =
+          score >= 80
+            ? "var(--green)"
+            : score >= 60
+            ? "var(--orange)"
+            : "var(--red)";
+        return React.createElement(
+          "div",
+          { className: "health-ring" },
+          React.createElement(
+            "svg",
+            { width: "48", height: "48" },
+            React.createElement("circle", {
+              cx: "24",
+              cy: "24",
+              r: "18",
+              fill: "none",
+              stroke: "var(--bg3)",
+              strokeWidth: "4",
+            }),
+            React.createElement("circle", {
+              cx: "24",
+              cy: "24",
+              r: "18",
+              fill: "none",
+              stroke: color,
+              strokeWidth: "4",
+              strokeDasharray: circ,
+              strokeDashoffset: offset,
+              strokeLinecap: "round",
+            })
+          ),
+          React.createElement(
+            "div",
+            { className: "health-ring-value", style: { color: color } },
+            grade
+          )
+        );
+      }
 
       // ---------------------------------------------------------------------------
       // React Application
@@ -10624,7 +10651,7 @@ function getAccentBlockStyle(borderColor, tint, extra) {
           }
         }, []);
 
-         function parseUrl(url) {
+        function parseUrl(url) {
           if (!url || typeof url !== "string") return null;
           url = url.trim();
           if (url.length > 200 || url.includes("{") || url.includes('"'))
@@ -10757,7 +10784,8 @@ function getAccentBlockStyle(borderColor, tint, extra) {
           }
 
           setRepoInfo(p);
-            // Authentication promise - resolve immediately for no auth/PAT, authenticate for GitHub App
+
+          // Authentication promise - resolve immediately for no auth/PAT, authenticate for GitHub App
           var authPromise;
           if (authMethod === "github_app") {
             setProgress("Authenticating with GitHub App...");
@@ -11074,6 +11102,19 @@ function getAccentBlockStyle(borderColor, tint, extra) {
           openExcludeModal(true);
         }
 
+        function openLocalZip() {
+          if (!window.JSZip) {
+            setError(
+              "ZIP support failed to load. Check your network connection and try again."
+            );
+            return;
+          }
+          if (zipInputRef.current) {
+            zipInputRef.current.value = "";
+            zipInputRef.current.click();
+          }
+        }
+
         function handleZipSelected(e) {
           var file = e.target.files && e.target.files[0];
           if (!file) return;
@@ -11333,19 +11374,6 @@ function getAccentBlockStyle(borderColor, tint, extra) {
           processFile(0);
         }
 
-        function openLocalZip() {
-          if (!window.JSZip) {
-            setError(
-              "ZIP support failed to load. Check your network connection and try again."
-            );
-            return;
-          }
-          if (zipInputRef.current) {
-            zipInputRef.current.value = "";
-            zipInputRef.current.click();
-          }
-        }
-
         async function readLocalFolderFromFiles(fileObjs, compiledPatterns) {
           var patterns = compiledPatterns || activeExcludePatterns;
           var SOFT_LIMIT = ANALYSIS_LIMITS.localSoft;
@@ -11497,7 +11525,8 @@ function getAccentBlockStyle(borderColor, tint, extra) {
                 });
               }
             }
-var dataObj = await runAnalysisData({
+
+            var dataObj = await runAnalysisData({
               analyzed: analyzed,
               allFns: allFns,
               excludePatterns: (patterns || []).map(function (x) {
@@ -12138,6 +12167,7 @@ var dataObj = await runAnalysisData({
           },
           [data, colorMode]
         );
+
         useEffect(
           function () {
             if (!data || !svgRef.current) return;
@@ -12518,7 +12548,7 @@ var dataObj = await runAnalysisData({
                       .strength(0.95)
                   );
               }
-               // Adaptive simulation parameters based on graph size
+              // Adaptive simulation parameters based on graph size
               var isLargeGraph = nodes.length > 300;
               var alphaDecay = isLargeGraph ? 0.08 : 0.05;
               var velDecay = isLargeGraph ? 0.7 : 0.6;
@@ -12996,7 +13026,6 @@ var dataObj = await runAnalysisData({
           ]
         );
 
-
         // Dependency Matrix visualization - Interactive with zoom, highlighting, selection
         useEffect(
           function () {
@@ -13403,8 +13432,7 @@ var dataObj = await runAnalysisData({
           [data, graphConfig.vizType, colorMap, folderFilter]
         );
 
-
-          // Sankey Diagram - Flow visualization showing dependencies between folders
+        // Sankey Diagram - Flow visualization showing dependencies between folders
         useEffect(
           function () {
             if (!data || !sankeyRef.current || graphConfig.vizType !== "sankey")
@@ -13666,7 +13694,7 @@ var dataObj = await runAnalysisData({
           [data, graphConfig.vizType, colorMap, folderFilter]
         );
 
-         // Disjoint Force-Directed - Separate clusters per folder
+        // Disjoint Force-Directed - Separate clusters per folder
         useEffect(
           function () {
             if (
@@ -14416,7 +14444,7 @@ var dataObj = await runAnalysisData({
           var url = URL.createObjectURL(blob);
           var a = document.createElement("a");
           a.href = url;
-          a.download = "codeflow-" + Date.now() + ".svg";
+          a.download = "ViewRepo-" + Date.now() + ".svg";
           a.click();
           URL.revokeObjectURL(url);
         }
@@ -14450,7 +14478,7 @@ var dataObj = await runAnalysisData({
           var url = URL.createObjectURL(blob);
           var a = document.createElement("a");
           a.href = url;
-          a.download = "codeflow-analysis.json";
+          a.download = "ViewRepo-analysis.json";
           a.click();
         }
         function getAnalysisSourceLabel() {
@@ -14468,7 +14496,7 @@ var dataObj = await runAnalysisData({
           var report = {
             repository: repo,
             analyzedAt: new Date().toISOString(),
-            codeflowVersion: "1.0",
+            ViewRepoVersion: "1.0",
             summary: {
               healthScore: h.score,
               healthGrade: h.grade,
@@ -14613,7 +14641,7 @@ var dataObj = await runAnalysisData({
             a.click();
             URL.revokeObjectURL(url);
           } else if (format === "md") {
-            var md = "# CodeFlow Analysis Report\n\n";
+            var md = "# ViewRepo Analysis Report\n\n";
             md += "**Repository:** " + repo + "\n";
             md += "**Analyzed:** " + new Date().toLocaleString() + "\n\n";
             md += "## Summary\n\n";
@@ -14720,7 +14748,7 @@ var dataObj = await runAnalysisData({
                     "\n\n";
               });
             }
-             md += "## File Details\n\n";
+            md += "## File Details\n\n";
             md += "| File | Folder | Layer | Lines | Functions |\n";
             md += "|------|--------|-------|-------|----------|\n";
             data.files.slice(0, 100).forEach(function (f) {
@@ -14743,7 +14771,7 @@ var dataObj = await runAnalysisData({
             var url = URL.createObjectURL(blob);
             var a = document.createElement("a");
             a.href = url;
-            a.download = "codeflow-report.md";
+            a.download = "ViewRepo-report.md";
             a.click();
             URL.revokeObjectURL(url);
           } else if (format === "txt") {
@@ -14870,7 +14898,7 @@ var dataObj = await runAnalysisData({
             var url = URL.createObjectURL(blob);
             var a = document.createElement("a");
             a.href = url;
-            a.download = "codeflow-report.txt";
+            a.download = "ViewRepo-report.txt";
             a.click();
             URL.revokeObjectURL(url);
           }
@@ -16204,138 +16232,6 @@ var dataObj = await runAnalysisData({
                             size: "m",
                           })
                         )
-                 
-                        ),
-                         className:
-                            "viz-selector-btn" +
-                            (graphConfig.vizType === "bundle" ? " active" : ""),
-                          onClick: function () {
-                            setGraphConfig(
-                              Object.assign({}, graphConfig, {
-                                vizType: "bundle",
-                              })
-                            );
-                          },
-                        },
-                        iconLabel("target", "Bundle")
-                      )
-                    ),
-                    graphConfig.vizType === "graph" &&
-                      React.createElement("svg", { ref: svgRef }),
-                    graphConfig.vizType === "treemap" &&
-                      React.createElement("div", {
-                        ref: treemapRef,
-                        className: "treemap-container",
-                      }),
-                    graphConfig.vizType === "matrix" &&
-                      React.createElement("div", {
-                        ref: matrixRef,
-                        className: "matrix-container",
-                        style: {
-                          width: "100%",
-                          height: "100%",
-                          overflow: "auto",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        },
-                      }),
-                    graphConfig.vizType === "dendro" &&
-                      React.createElement("div", {
-                        ref: dendroRef,
-                        className: "dendro-container",
-                        style: {
-                          width: "100%",
-                          height: "100%",
-                          position: "relative",
-                        },
-                      }),
-                    graphConfig.vizType === "sankey" &&
-                      React.createElement("div", {
-                        ref: sankeyRef,
-                        className: "sankey-container",
-                        style: {
-                          width: "100%",
-                          height: "100%",
-                          position: "relative",
-                        },
-                      }),
-                    graphConfig.vizType === "disjoint" &&
-                      React.createElement("div", {
-                        ref: disjointRef,
-                        className: "disjoint-container",
-                        style: {
-                          width: "100%",
-                          height: "100%",
-                          position: "relative",
-                        },
-                      }),
-                    graphConfig.vizType === "bundle" &&
-                      React.createElement("div", {
-                        ref: bundleRef,
-                        className: "bundle-container",
-                      }),
-                    graphConfig.vizType === "graph" &&
-                      React.createElement(
-                        "div",
-                        { className: "canvas-toolbar" },
-                        React.createElement(
-                          "button",
-                          {
-                            className: "tool-btn",
-                            onClick: zoomIn,
-                            "aria-label": "Zoom in",
-                          },
-                          "+"
-                        ),
-                        React.createElement(
-                          "button",
-                          {
-                            className: "tool-btn",
-                            onClick: zoomOut,
-                            "aria-label": "Zoom out",
-                          },
-                          "−"
-                        ),
-                        React.createElement(
-                          "button",
-                          {
-                            className: "tool-btn",
-                            onClick: resetZoom,
-                            "aria-label": "Reset zoom",
-                          },
-                          "⟲"
-                        ),
-                        React.createElement(
-                          "button",
-                          {
-                            className: "tool-btn",
-                            onClick: fitView,
-                            "aria-label": "Fit view",
-                          },
-                          "⊡"
-                        ),
-                        React.createElement(
-                          "button",
-                          {
-                            className:
-                              "tool-btn" + (showGraphConfig ? " active" : ""),
-                            onClick: function () {
-                              setShowGraphConfig(!showGraphConfig);
-                            },
-                            "aria-label": "Graph settings",
-                            style: showGraphConfig
-                              ? {
-                                  background: "var(--accbg)",
-                                  borderColor: "var(--acc)",
-                                }
-                              : {},
-                          },
-                          React.createElement(Icon, {
-                            name: "settings",
-                            size: "m",
-                          })
-                        )
                       ),
                     graphConfig.vizType === "graph" &&
                       showGraphConfig &&
@@ -16760,7 +16656,7 @@ var dataObj = await runAnalysisData({
                       )
                   )
             ),
-             React.createElement(
+            React.createElement(
               "div",
               {
                 className:
