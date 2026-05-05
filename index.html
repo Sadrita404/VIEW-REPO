@@ -2253,7 +2253,7 @@
         align-items: center;
         justify-content: center;
         z-index: 1100;
-        backdrop-filter: blur(4px);
+        backdrop-filter6: blur(4px);
       }
       .file-preview-modal {
         background: var(--bg0);
@@ -17244,10 +17244,7 @@
                                             )
                                         )
                                     )
-                                ),
-                                 (function () {
-                                var outgoing = [],
-                                  incoming = [];
+                                ),                              (function ()        var outgoing = []                                  incoming = [];
                                 var connByFile = { out: {}, in: {} };
                                 data.connections.forEach(function (c) {
                                   var src =
@@ -18453,3 +18450,236 @@
                                   "Your codebase looks healthy"
                                 )
                               )
+                               : React.createElement(
+                                React.Fragment,
+                                null,
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      fontSize: 9,
+                                      color: "var(--t3)",
+                                      marginBottom: 12,
+                                    },
+                                  },
+                                  "Prioritized recommendations based on your codebase analysis"
+                                ),
+                                data.suggestions.map(function (s, i) {
+                                  var suggestionTone =
+                                    s.priority === "critical"
+                                      ? getAccentBlockStyle(
+                                          "rgba(255,95,95,0.36)",
+                                          "rgba(255,95,95,0.08)",
+                                          { padding: 12, marginBottom: 10 }
+                                        )
+                                      : s.priority === "high"
+                                      ? getAccentBlockStyle(
+                                          "rgba(255,159,67,0.34)",
+                                          "rgba(255,159,67,0.08)",
+                                          { padding: 12, marginBottom: 10 }
+                                        )
+                                      : getAccentBlockStyle(
+                                          "rgba(0,255,157,0.28)",
+                                          "rgba(0,255,157,0.08)",
+                                          { padding: 12, marginBottom: 10 }
+                                        );
+                                  return React.createElement(
+                                    "div",
+                                    {
+                                      key: i,
+                                      className: "suggestion-card",
+                                      style: suggestionTone,
+                                    },
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          marginBottom: 6,
+                                        },
+                                      },
+                                      React.createElement(Icon, {
+                                        name: s.icon,
+                                        size: "l",
+                                      }),
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          style: {
+                                            fontWeight: 600,
+                                            fontSize: 11,
+                                          },
+                                        },
+                                        s.title
+                                      ),
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          className:
+                                            "badge badge-" +
+                                            (s.priority === "critical"
+                                              ? "danger"
+                                              : s.priority === "high"
+                                              ? "warning"
+                                              : "info"),
+                                          style: {
+                                            marginLeft: "auto",
+                                            fontSize: 8,
+                                          },
+                                        },
+                                        s.priority.toUpperCase()
+                                      )
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 10,
+                                          color: "var(--t2)",
+                                          marginBottom: 8,
+                                        },
+                                      },
+                                      s.desc
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 9,
+                                          background: "var(--bg2)",
+                                          padding: "6px 8px",
+                                          borderRadius: 4,
+                                          marginBottom: 6,
+                                        },
+                                      },
+                                      React.createElement(
+                                        "span",
+                                        { style: { color: "var(--t3)" } },
+                                        "Action: "
+                                      ),
+                                      React.createElement(
+                                        "span",
+                                        { style: { color: "var(--t1)" } },
+                                        s.action
+                                      )
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 9,
+                                          color: "var(--green)",
+                                        },
+                                      },
+                                      React.createElement(Icon, {
+                                        name: "spark",
+                                        size: "s",
+                                      }),
+                                      " ",
+                                      s.impact
+                                    )
+                                  );
+                                }),
+                                data.duplicates &&
+                                  data.duplicates.length > 0 &&
+                                  React.createElement(
+                                    "div",
+                                    { style: { marginTop: 16 } },
+                                    React.createElement(
+                                      "div",
+                                      {
+                                        style: {
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          marginBottom: 8,
+                                        },
+                                      },
+                                      React.createElement(Icon, {
+                                        name: "copy",
+                                        size: "m",
+                                      }),
+                                      " Duplicate Functions (",
+                                      data.duplicates.length,
+                                      ")"
+                                    ),
+                                    data.duplicates
+                                      .slice(0, 10)
+                                      .map(function (d, i) {
+                                        return React.createElement(
+                                          "div",
+                                          {
+                                            key: i,
+                                            style: {
+                                              background: "var(--bg0)",
+                                              borderRadius: 6,
+                                              padding: 8,
+                                              marginBottom: 6,
+                                              fontSize: 10,
+                                              cursor: "pointer",
+                                            },
+                                            onClick: function () {
+                                              setDrillDown({
+                                                type: "duplicate",
+                                                data: d,
+                                              });
+                                            },
+                                          },
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontWeight: 600,
+                                                color:
+                                                  d.type === "code"
+                                                    ? "var(--purple)"
+                                                    : "var(--orange)",
+                                              },
+                                            },
+                                            d.type === "code"
+                                              ? "Similar Code"
+                                              : "Same Name",
+                                            ": ",
+                                            d.name
+                                          ),
+                                          React.createElement(
+                                            "div",
+                                            {
+                                              style: {
+                                                fontSize: 9,
+                                                color: "var(--acc)",
+                                                marginTop: 4,
+                                              },
+                                            },
+                                            "Click for details (",
+                                            d.files.length,
+                                            " locations) →"
+                                          )
+                                        );
+                                      })
+                                  )
+                              )
+                        )
+                    )
+                  )
+                : React.createElement(
+                    "div",
+                    { className: "empty-state" },
+                    React.createElement(Icon, {
+                      name: "chart",
+                      size: "xxl",
+                      className: "empty-icon",
+                    }),
+                    React.createElement(
+                      "div",
+                      { className: "empty-title" },
+                      "Analysis"
+                    ),
+                    React.createElement(
+                      "div",
+                      { className: "empty-desc" },
+                      "Analyze a GitHub repo, local folder, or ZIP archive to see insights"
+                    )
+                  )
+            )
