@@ -19697,3 +19697,438 @@
                 )
               )
             ),
+            isMobile &&
+            React.createElement(
+              "div",
+              { className: "mobile-bottom-nav" },
+              React.createElement(
+                "button",
+                {
+                  className:
+                    "top-btn" + (mobilePanel === "explorer" ? " active" : ""),
+                  "aria-label": "Open explorer panel",
+                  onClick: function () {
+                    toggleMobilePanel("explorer");
+                  },
+                  type: "button",
+                },
+                React.createElement(Icon, { name: "folder", size: "m" }),
+                "Explorer"
+              ),
+              React.createElement(
+                "button",
+                {
+                  className: "top-btn" + (!mobilePanel ? " active" : ""),
+                  "aria-label": "Show canvas",
+                  onClick: function () {
+                    setMobilePanel(null);
+                  },
+                  type: "button",
+                },
+                React.createElement(Icon, { name: "graph", size: "m" }),
+                "Canvas"
+              ),
+              React.createElement(
+                "button",
+                {
+                  className:
+                    "top-btn" + (mobilePanel === "details" ? " active" : ""),
+                  "aria-label": "Open insights panel",
+                  onClick: function () {
+                    toggleMobilePanel("details");
+                  },
+                  disabled: !data,
+                  type: "button",
+                },
+                React.createElement(Icon, {
+                  name: selected ? "file" : "layout",
+                  size: "m",
+                }),
+                selected ? "Inspector" : "Insights"
+              )
+            ),
+          drillDown &&
+            React.createElement(
+              "div",
+              {
+                className: "modal-overlay",
+                onClick: function () {
+                  setDrillDown(null);
+                },
+              },
+              React.createElement(
+                "div",
+                {
+                  className: "modal",
+                  onClick: function (e) {
+                    e.stopPropagation();
+                  },
+                  style: {
+                    maxWidth: 600,
+                    maxHeight: "85vh",
+                    display: "flex",
+                    flexDirection: "column",
+                  },
+                },
+                React.createElement(
+                  "div",
+                  { className: "modal-header" },
+                  React.createElement(
+                    "div",
+                    { className: "modal-title" },
+                    drillDown.type === "issue"
+                      ? React.createElement(
+                          React.Fragment,
+                          null,
+                          React.createElement(StatusDot, {
+                            color:
+                              drillDown.data.type === "critical"
+                                ? "var(--red)"
+                                : "var(--orange)",
+                          }),
+                          " ",
+                          drillDown.data.title
+                        )
+                      : drillDown.type === "pattern"
+                      ? iconLabel(drillDown.data.icon, drillDown.data.name, "m")
+                      : drillDown.type === "security"
+                      ? React.createElement(
+                          React.Fragment,
+                          null,
+                          React.createElement(StatusDot, {
+                            color: getSeverityColor(drillDown.data.severity),
+                          }),
+                          " ",
+                          drillDown.data.title
+                        )
+                      : drillDown.type === "duplicate"
+                      ? iconLabel(
+                          drillDown.data.type === "code" ? "copy" : "note",
+                          (drillDown.data.type === "code"
+                            ? "Similar Code"
+                            : "Duplicate Name") +
+                            ": " +
+                            drillDown.data.name,
+                          "m"
+                        )
+                      : "Details"
+                  ),
+                  React.createElement(
+                    "button",
+                    {
+                      className: "modal-close",
+                      onClick: function () {
+                        setDrillDown(null);
+                      },
+                    },
+                    "×"
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  {
+                    className: "modal-body",
+                    style: { overflowY: "auto", flex: 1 },
+                  },
+                  // Issue drill-down
+                  drillDown.type === "issue" &&
+                    React.createElement(
+                      React.Fragment,
+                      null,
+                      React.createElement(
+                        "div",
+                        {
+                          style: {
+                            background: "var(--bg0)",
+                            padding: 12,
+                            borderRadius: 8,
+                            marginBottom: 16,
+                          },
+                        },
+                        React.createElement(
+                          "div",
+                          { style: { fontSize: 11, color: "var(--t2)" } },
+                          drillDown.data.desc
+                        )
+                      ),
+                      React.createElement(
+                        "div",
+                        {
+                          style: {
+                            fontSize: 12,
+                            fontWeight: 600,
+                            marginBottom: 12,
+                          },
+                        },
+                        "All Affected Items (",
+                        drillDown.data.items ? drillDown.data.items.length : 0,
+                        ")"
+                      ),
+                      drillDown.data.items &&
+                        drillDown.data.items.map(function (item, j) {
+                          return React.createElement(
+                            "div",
+                            {
+                              key: j,
+                              style: getAccentBlockStyle(
+                                "rgba(0,255,157,0.28)",
+                                "rgba(0,255,157,0.08)",
+                                { padding: 12, marginBottom: 8 }
+                              ),
+                            },
+                            React.createElement(
+                              "div",
+                              {
+                                style: {
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                },
+                              },
+                              React.createElement(
+                                "div",
+                                { style: { fontWeight: 600, fontSize: 11 } },
+                                item.name
+                              ),
+                              item.file &&
+                                React.createElement(
+                                  "div",
+                                  { style: { display: "flex", gap: 6 } },
+                                  React.createElement(
+                                    "button",
+                                    {
+                                      className: "view-file-btn",
+                                      onClick: function (e) {
+                                        e.stopPropagation();
+                                        openFilePreview(item.file, item.line);
+                                      },
+                                    },
+                                    iconLabel("eye", "View")
+                                  ),
+                                  React.createElement(
+                                    "button",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        padding: "4px 8px",
+                                        background: "var(--acc)",
+                                        color: "var(--bg0)",
+                                        border: "none",
+                                        borderRadius: 4,
+                                        cursor: "pointer",
+                                      },
+                                      onClick: function (e) {
+                                        e.stopPropagation();
+                                        selectFile(item.file);
+                                        setDrillDown(null);
+                                      },
+                                    },
+                                    "Go to file →"
+                                  )
+                                )
+                            ),
+                            item.file &&
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    fontSize: 10,
+                                    color: "var(--t3)",
+                                    marginTop: 4,
+                                    fontFamily: "monospace",
+                                  },
+                                },
+                                item.file,
+                                item.line ? " : " + item.line : ""
+                              ),
+                            (item.lines ||
+                              item.fns ||
+                              item.imports ||
+                              item.score) &&
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    display: "flex",
+                                    gap: 12,
+                                    marginTop: 8,
+                                  },
+                                },
+                                item.lines &&
+                                  React.createElement(
+                                    "span",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--purple)",
+                                      },
+                                    },
+                                    item.lines,
+                                    " lines"
+                                  ),
+                                item.fns &&
+                                  React.createElement(
+                                    "span",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--orange)",
+                                      },
+                                    },
+                                    item.fns,
+                                    " functions"
+                                  ),
+                                item.imports &&
+                                  React.createElement(
+                                    "span",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--blue)",
+                                      },
+                                    },
+                                    item.imports,
+                                    " imports"
+                                  ),
+                                item.score &&
+                                  React.createElement(
+                                    "span",
+                                    {
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--red)",
+                                      },
+                                    },
+                                    "Complexity: ",
+                                    item.score
+                                  )
+                              ),
+                            item.code &&
+                              React.createElement(
+                                "pre",
+                                {
+                                  style: {
+                                    fontSize: 9,
+                                    background: "var(--bg2)",
+                                    padding: 8,
+                                    borderRadius: 4,
+                                    marginTop: 8,
+                                    overflow: "auto",
+                                    maxHeight: 100,
+                                    fontFamily: "monospace",
+                                  },
+                                },
+                                item.code
+                              ),
+                            item.suggestion &&
+                              React.createElement(
+                                "div",
+                                {
+                                  style: {
+                                    fontSize: 10,
+                                    color: "var(--acc)",
+                                    marginTop: 8,
+                                    padding: "6px 8px",
+                                    background: "var(--bg2)",
+                                    borderRadius: 4,
+                                  },
+                                },
+                                React.createElement(Icon, {
+                                  name: "spark",
+                                  size: "s",
+                                }),
+                                " ",
+                                item.suggestion
+                              ),
+                            // For items with nested files (like duplicates)
+                            item.files &&
+                              React.createElement(
+                                "div",
+                                { style: { marginTop: 8 } },
+                                React.createElement(
+                                  "div",
+                                  {
+                                    style: {
+                                      fontSize: 9,
+                                      color: "var(--t3)",
+                                      marginBottom: 4,
+                                    },
+                                  },
+                                  "Locations:"
+                                ),
+                                item.files.map(function (f, k) {
+                                  return React.createElement(
+                                    "div",
+                                    {
+                                      key: k,
+                                      style: {
+                                        fontSize: 9,
+                                        color: "var(--t2)",
+                                        padding: "4px 8px",
+                                        background: "var(--bg2)",
+                                        borderRadius: 4,
+                                        marginBottom: 4,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                      },
+                                    },
+                                    React.createElement(
+                                      "span",
+                                      {
+                                        style: {
+                                          fontFamily: "monospace",
+                                          cursor: "pointer",
+                                          flex: 1,
+                                        },
+                                        onClick: function () {
+                                          selectFile(f.file || f);
+                                          setDrillDown(null);
+                                        },
+                                      },
+                                      typeof f === "string"
+                                        ? f.split("/").pop()
+                                        : (f.file || "").split("/").pop(),
+                                      f.line ? " :" + f.line : ""
+                                    ),
+                                    React.createElement(
+                                      "div",
+                                      { style: { display: "flex", gap: 4 } },
+                                      React.createElement(
+                                        "button",
+                                        {
+                                          className: "view-file-btn",
+                                          onClick: function (e) {
+                                            e.stopPropagation();
+                                            openFilePreview(
+                                              f.file || f,
+                                              f.line
+                                            );
+                                          },
+                                        },
+                                        React.createElement(Icon, {
+                                          name: "eye",
+                                          size: "s",
+                                        })
+                                      ),
+                                      React.createElement(
+                                        "span",
+                                        {
+                                          style: {
+                                            color: "var(--acc)",
+                                            cursor: "pointer",
+                                          },
+                                          onClick: function () {
+                                            selectFile(f.file || f);
+                                            setDrillDown(null);
+                                          },
+                                        },
+                                        "→"
+                                      )
+                                    )
+                                  );
+                                })
+                              )
+                          );
+                        })
+                    ),
